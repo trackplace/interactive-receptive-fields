@@ -1,0 +1,105 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  padding: 0 20px 30px;
+}
+
+/* Title with a line under it */
+header {
+  text-align: center;
+}
+
+header h1 {
+  margin: 20px 0 10px;
+}
+
+header hr {
+  border: 0;
+  border-top: 2px solid #000;
+  margin: 0;
+}
+
+main {
+  max-width: 1000px;
+  margin: 24px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Every panel is a box */
+.box {
+  border: 2px solid #000;
+  padding: 14px 18px;
+}
+
+.box h2 {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+}
+
+/* Settings box */
+#cell-type-row {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+#controls hr {
+  border: 0;
+  border-top: 2px solid #000;
+  margin: 12px -18px;
+}
+
+#parameters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Each parameter: label | slider | value, all on one line */
+.row {
+  display: grid;
+  grid-template-columns: 240px 1fr 50px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* Two boxes next to each other */
+#visuals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.note {
+  font-size: 0.85rem;
+  margin: 6px 0 0;
+}
+
+/* On narrow phones, stack the two boxes */
+@media (max-width: 700px) {
+  #visuals {
+    grid-template-columns: 1fr;
+  }
+
+  .row {
+    grid-template-columns: 1fr 50px;
+  }
+
+  .row input[type="range"],
+  .row select {
+    grid-column: 1 / 3;
+  }
+}
