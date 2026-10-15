@@ -257,3 +257,33 @@ main.wide { margin-top: 0; }
 
 .bio-pulse { transform-box: fill-box; transform-origin: center; animation: bio-pulse 1.5s ease-out infinite; }
 @keyframes bio-pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.9); opacity: 0; } }
+
+/* ---------- enlarge a panel (click its title) ---------- */
+h2.clickable {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+h2.clickable:hover { color: var(--cyan); }
+h2.clickable:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+h2.clickable span { font-size: 0.9em; opacity: 0.7; }
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 20, 0.8);
+  z-index: 50;
+}
+.box.enlarged {
+  position: fixed;
+  inset: 64px 4vw 4vh;
+  z-index: 60;
+  margin: 0;
+  padding: 18px 24px;
+  overflow: auto;
+  background: rgba(12, 18, 42, 0.98);
+  box-shadow: 0 0 60px rgba(91, 140, 255, 0.35);
+}
+.box.enlarged .note { font-size: 0.9rem; }

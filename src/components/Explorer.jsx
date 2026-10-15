@@ -263,11 +263,37 @@ export default function Explorer() {
   const rateRef = useRef(20)
   const [flipped, setFlipped] = useState(false)
 
-  // pause for the action potential scope. The ref lets the animation loop
-  // (which starts once) always see the latest value.
   const [paused, setPaused] = useState(false)
   const pausedRef = useRef(false)
   pausedRef.current = paused
+
+  // which panel is enlarged: null, 'field', 'dog' or 'resp'
+  const [big, setBig] = useState(null)
+  const toggle = (name) => setBig((b) => (b === name ? null : name))
+  const titleProps = (name) => ({
+    role: 'button',
+    tabIndex: 0,
+    className: 'clickable',
+    title: big === name ? 'Click to shrink' : 'Click to enlarge',
+    onClick: () => toggle(name),
+    onKeyDown: (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(name) }
+    },
+  })
+  const boxClass = (name) => 'box' + (big === name ? ' enlarged' : '')
+  const icon = (name) => <span aria-hidden="true">{big === name ? '✕' : '⤢'}</span>
+
+  // Esc closes the enlarged panel, and the page behind it stops scrolling
+  useEffect(() => {
+    if (!big) return
+    const onKey = (e) => e.key === 'Escape' && setBig(null)
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [big])
 
   const rate = useMemo(() => response(p), [p])
 
@@ -278,7 +304,7 @@ export default function Explorer() {
     drawDog(dogRef.current, p)
   }, [p])
 
-  // redraw the plots whenever their panels are resized
+  // redraw the plots whenever their panels are resized (this also handles enlarging)
   useEffect(() => {
     const redraw = () => { drawField(fieldRef.current, pRef.current); drawDog(dogRef.current, pRef.current) }
     const ro = new ResizeObserver(redraw)
@@ -292,6 +318,8 @@ export default function Explorer() {
 
   return (
     <div className="explorer">
+      {big && <div className="backdrop" onClick={() => setBig(null)} />}
+
       <section id="controls" className="box">
         <div id="cell-type-row">
           <strong>Cell type =</strong>
@@ -336,14 +364,15 @@ export default function Explorer() {
       </section>
 
       <section id="visuals">
-        <div id="receptive-field-panel" className="box">
-          <h2>Receptive field and stimulus</h2>
+        <div id="receptive-field-panel" className={boxClass('field')}>
+          <h2 {...titleProps('field')}>Receptive field and stimulus {icon('field')}</h2>
           <div className="plot"><canvas ref={fieldRef} /></div>
           <p className="note">Amber: light excites the cell. Blue: light suppresses it. The black outline marks where the centre ends and the surround begins.</p>
         </div>
-        <div id="dog-panel" className="box">
+
+        <div id="dog-panel" className={boxClass('dog')}>
           <div className="panel-head">
-            <h2>{flipped ? 'Underlying biology' : 'Difference of Gaussians graph'}</h2>
+            <h2 {...titleProps('dog')}>{flipped ? 'Underlying biology' : 'Difference of Gaussians graph'} {icon('dog')}</h2>
             <button className="btn mini" onClick={() => setFlipped(!flipped)}>
               {flipped ? 'Show DoG graph' : 'Show underlying biology'}
             </button>
@@ -362,9 +391,9 @@ export default function Explorer() {
         </div>
       </section>
 
-      <section id="response-panel" className="box">
+      <section id="response-panel" className={boxClass('resp')}>
         <div className="panel-head">
-          <h2>Action potentials (predicted cell response)</h2>
+          <h2 {...titleProps('resp')}>Action potentials (predicted cell response) {icon('resp')}</h2>
           <p id="readout">
             Predicted rate: <strong>{rate.toFixed(0)} spikes/s</strong> (rest: 20)
           </p>
