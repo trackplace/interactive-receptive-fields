@@ -158,23 +158,31 @@ function drawDog(cv, p) {
   ctx.fillText('dashed: stimulus', m + 130, 16)
 }
 
-// Live scrolling "oscilloscope": spikes are generated in real time at the predicted rate
-function startScope(cv, rateRef) {
+// Live scrolling "oscilloscope": spikes are generated in real time at the predicted rate.
+// `now` is our own clock. It only moves forward while the scope is playing, so pausing
+// freezes everything and resuming carries on without a jump.
+function startScope(cv, rateRef, pausedRef) {
   const PPS = 320
-  let spikes = [], cur = rateRef.current, last = performance.now() / 1000, next = last, raf
+  let spikes = [], cur = rateRef.current, now = 0, next = 0, lastReal = performance.now() / 1000, raf
   const loop = () => {
     raf = requestAnimationFrame(loop)
     const { ctx, w, h } = prep(cv)
     const TOP = 40, BOT = h - 46
     const vy = (mv) => TOP + ((40 - mv) / 125) * (BOT - TOP)
-    const now = performance.now() / 1000
-    cur += (rateRef.current - cur) * Math.min(1, (now - last) * 6)
-    last = now
-    while (next <= now) {
-      if (cur > 0.5) spikes.push(next)
-      next += Math.min(0.5, (1 / Math.max(cur, 0.5)) * (0.75 + 0.5 * Math.random())) // fairly regular, so the rate is easy to read
+
+    const real = performance.now() / 1000
+    const dt = Math.min(0.1, real - lastReal)
+    lastReal = real
+
+    if (!pausedRef.current) {
+      now += dt
+      cur += (rateRef.current - cur) * Math.min(1, dt * 6)
+      while (next <= now) {
+        if (cur > 0.5) spikes.push(next)
+        next += Math.min(0.5, (1 / Math.max(cur, 0.5)) * (0.75 + 0.5 * Math.random())) // fairly regular, so the rate is easy to read
+      }
+      spikes = spikes.filter((t) => now - t < w / PPS + 0.1)
     }
-    spikes = spikes.filter((t) => now - t < w / PPS + 0.1)
 
     ctx.fillStyle = '#0d1330'
     ctx.fillRect(0, 0, w, h)
@@ -254,6 +262,13 @@ export default function Explorer() {
   const respRef = useRef(null)
   const rateRef = useRef(20)
   const [flipped, setFlipped] = useState(false)
+
+  // pause for the action potential scope. The ref lets the animation loop
+  // (which starts once) always see the latest value.
+  const [paused, setPaused] = useState(false)
+  const pausedRef = useRef(false)
+  pausedRef.current = paused
+
   const rate = useMemo(() => response(p), [p])
 
   const pRef = useRef(p)
@@ -273,7 +288,7 @@ export default function Explorer() {
   }, [])
 
   useEffect(() => { rateRef.current = rate }, [rate])
-  useEffect(() => startScope(respRef.current, rateRef), [])
+  useEffect(() => startScope(respRef.current, rateRef, pausedRef), [])
 
   return (
     <div className="explorer">
@@ -353,6 +368,9 @@ export default function Explorer() {
           <p id="readout">
             Predicted rate: <strong>{rate.toFixed(0)} spikes/s</strong> (rest: 20)
           </p>
+          <button className="btn mini" onClick={() => setPaused((v) => !v)}>
+            {paused ? '▶ Play' : '❚❚ Pause'}
+          </button>
         </div>
         <div className="plot"><canvas ref={respRef} /></div>
       </section>
