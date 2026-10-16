@@ -1,14 +1,38 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { paintEye, paintBeam, EYE_W, EYE_H } from './eyePainter'
+import { Term, useGlossary } from './Glossary'
 
-const COPY = [
-  { text: 'Light enters through the cornea, passes the pupil, and is focused by the lens into a beam that lands on the retina at the back of the eye.', button: 'Zoom in' },
-  { text: 'Up close, the retina is a stack of cells. Photoreceptors catch the light. Bipolar cells pass the signal to ganglion cells, and horizontal cells let neighbouring photoreceptors influence each other.', button: 'Rotate' },
-  { text: 'Seen from above, the cells feeding one ganglion cell form a receptive field: a small centre (amber) wrapped by a ring called the surround (blue). The two work against each other, which is how your eye detects contrast. Drag to look around.', button: 'Explain' },
-]
+// names of the three frames, also used by the menu
+export const EYE_STEP_TITLES = ['The eye', 'Inside the retina', 'Receptive field']
+const NEXT_LABEL = ['Zoom in', 'Rotate', 'Explain']
+
+function StepText({ step }) {
+  if (step === 0)
+    return (
+      <p>
+        Light enters through the <Term id="cornea">cornea</Term>, passes the <Term id="pupil">pupil</Term>, and is focused by
+        the <Term id="lens">lens</Term> into a beam that lands on the <Term id="retina">retina</Term> at the back of the eye.
+      </p>
+    )
+  if (step === 1)
+    return (
+      <p>
+        Up close, the retina is a stack of cells. <Term id="photoreceptor">Photoreceptors</Term> catch the light.{' '}
+        <Term id="bipolar">Bipolar cells</Term> pass the signal to <Term id="ganglion">ganglion cells</Term>, and{' '}
+        <Term id="horizontal">horizontal cells</Term> let neighbouring photoreceptors influence each other.
+      </p>
+    )
+  return (
+    <p>
+      Seen from above, the cells feeding one ganglion cell form a <Term id="receptivefield">receptive field</Term>: a small{' '}
+      <Term id="centre">centre</Term> (amber) wrapped by a ring called the <Term id="surround">surround</Term> (blue). The two work
+      against each other, which is how your eye detects <Term id="contrast">contrast</Term>. Drag to look around.
+    </p>
+  )
+}
 
 const R = (a, b) => a + Math.random() * (b - a)
 const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
@@ -136,10 +160,14 @@ function buildRetina() {
   return { group: g, fieldMats: [fm, fs], outlineMat: om }
 }
 
-export default function EyeScene({ onExplain }) {
-  const [step, setStep] = useState(0)
+// The frame is controlled by the parent (App), so the menu, the Back button and the Next button all share one source of truth.
+export default function EyeScene({ step, onStep, onBack, onExplain }) {
   const mount = useRef(null)
   const api = useRef(null)
+  const first = useRef(true)
+  const { openTerm } = useGlossary()
+  const openRef = useRef(openTerm)
+  openRef.current = openTerm
 
   useEffect(() => {
     const el = mount.current
@@ -170,22 +198,23 @@ export default function EyeScene({ onExplain }) {
     const controls = new OrbitControls(camera, renderer.domElement)
     Object.assign(controls, { enabled: false, enableDamping: true, enablePan: false, minDistance: 0.6, maxDistance: 4, autoRotateSpeed: 1.6 })
 
-    // labels (HTML, projected from 3D points every frame)
-    const mk = (text, color, local, show) => {
+    // labels (HTML, projected from 3D points every frame). Click one to open its explanation box.
+    const mk = (text, color, local, show, term) => {
       const d = document.createElement('div')
-      d.className = 'lbl'
+      d.className = 'lbl' + (term ? ' link' : '')
       d.textContent = text
       d.style.borderColor = color
+      if (term) d.addEventListener('click', () => openRef.current(term))
       el.appendChild(d)
       return { d, local: new THREE.Vector3(...local), show }
     }
     const labels = [
-      mk('Ganglion cell', '#8b5cf6', [1.25, 0.7, 0], (s) => s === 1),
-      mk('Bipolar cell', '#10b981', [-1.25, 0.3, 0], (s) => s === 1),
-      mk('Horizontal cell', '#ff9f43', [1.25, -0.08, 0], (s) => s === 1),
-      mk('Photoreceptors', '#f5a524', [-1.25, -0.5, 0], (s) => s === 1),
-      mk('Centre', '#f5a524', [0, 1.22, 0], (s) => s === 2),
-      mk('Surround', '#4d7cff', [0.75, 1.22, 0], (s) => s === 2),
+      mk('Ganglion cell', '#8b5cf6', [1.25, 0.7, 0], (s) => s === 1, 'ganglion'),
+      mk('Bipolar cell', '#10b981', [-1.25, 0.3, 0], (s) => s === 1, 'bipolar'),
+      mk('Horizontal cell', '#ff9f43', [1.25, -0.08, 0], (s) => s === 1, 'horizontal'),
+      mk('Photoreceptors', '#f5a524', [-1.25, -0.5, 0], (s) => s === 1, 'photoreceptor'),
+      mk('Centre', '#f5a524', [0, 1.22, 0], (s) => s === 2, 'centre'),
+      mk('Surround', '#4d7cff', [0.75, 1.22, 0], (s) => s === 2, 'surround'),
     ]
 
     const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0)
@@ -193,18 +222,26 @@ export default function EyeScene({ onExplain }) {
     const qTop = new THREE.Quaternion().setFromAxisAngle(X, Math.PI / 2)
     const V = (...a) => new THREE.Vector3(...a)
     const T = [
-      { pos: V(0.3, 0, 6.4), look: V(0.3, 0, 0), alpha: 1, s: 0.05, f: 0, q: qSide, dur: 0 },
+      { pos: V(0.3, 0, 6.4), look: V(0.3, 0, 0), alpha: 1, s: 0.05, f: 0, q: qSide, dur: 2.2 },
       { pos: V(RET.x, 0.12, 1.55), look: V(RET.x, 0, 0), alpha: 0, s: 0.3, f: 0, q: qSide, dur: 2.2 },
       { pos: V(RET.x, 0.12, 2.0), look: V(RET.x, 0, 0), alpha: 0, s: 0.3, f: 1, q: qTop, dur: 2.8 },
     ]
     const cur = { pos: T[0].pos.clone(), look: T[0].look.clone(), alpha: 1, s: 0.05, f: 0, q: qSide.clone() }
     let tw = null, curStep = 0
 
-    api.current = (n) => {
+    // go to frame n (forwards or backwards). instant = jump without animating (used when the menu opens this frame directly)
+    api.current = (n, instant) => {
       curStep = n
       model.visible = true
+      if (controls.enabled) {
+        // leaving the free-look mode: continue the tween from wherever the camera is now
+        cur.pos.copy(camera.position)
+        cur.look.copy(controls.target)
+        controls.enabled = false
+        controls.autoRotate = false
+      }
       const t = T[n]
-      tw = { t0: performance.now() / 1000, p0: cur.pos.clone(), l0: cur.look.clone(), q0: cur.q.clone(), a0: cur.alpha, s0: cur.s, f0: cur.f, to: t }
+      tw = { t0: performance.now() / 1000, p0: cur.pos.clone(), l0: cur.look.clone(), q0: cur.q.clone(), a0: cur.alpha, s0: cur.s, f0: cur.f, to: t, dur: instant ? 0 : t.dur }
     }
 
     const resize = () => {
@@ -226,7 +263,7 @@ export default function EyeScene({ onExplain }) {
       raf = requestAnimationFrame(loop)
       const now = performance.now() / 1000
       if (tw) {
-        const k = Math.min(1, (now - tw.t0) / tw.to.dur), e = ease(k), t = tw.to
+        const k = tw.dur > 0 ? Math.min(1, (now - tw.t0) / tw.dur) : 1, e = ease(k), t = tw.to
         cur.pos.lerpVectors(tw.p0, t.pos, e)
         cur.look.lerpVectors(tw.l0, t.look, e)
         cur.q.slerpQuaternions(tw.q0, t.q, e)
@@ -236,6 +273,7 @@ export default function EyeScene({ onExplain }) {
         if (k >= 1) {
           tw = null
           if (curStep === 2) {
+            camera.position.copy(cur.pos)
             controls.target.copy(cur.look)
             controls.enabled = true
             controls.autoRotate = true
@@ -282,16 +320,41 @@ export default function EyeScene({ onExplain }) {
     }
   }, [])
 
-  useEffect(() => { if (step > 0) api.current?.(step) }, [step])
+  // react to the frame changing (Back, Next or the menu). Opening straight on a later frame jumps there without animating.
+  useEffect(() => {
+    const instant = first.current
+    first.current = false
+    if (instant && step === 0) return
+    api.current?.(step, instant)
+  }, [step])
 
   return (
     <div className="split">
       <div className="side">
         <div className="card fade-in" key={step}>
-          <p>{COPY[step].text}</p>
-          <button className="btn" onClick={() => (step === 2 ? onExplain() : setStep(step + 1))}>
-            {COPY[step].button}
-          </button>
+          <nav className="stepnav" aria-label="Frames">
+            {EYE_STEP_TITLES.map((title, i) => (
+              <button
+                key={title}
+                className={'stepdot' + (i === step ? ' active' : '') + (i < step ? ' done' : '')}
+                aria-current={i === step ? 'step' : undefined}
+                onClick={() => onStep(i)}
+              >
+                <span>{i + 1}</span>
+                {title}
+              </button>
+            ))}
+          </nav>
+          <StepText step={step} />
+          <p className="tip">Tip: underlined words and the coloured labels are clickable.</p>
+          <div className="card-actions">
+            <button className="btn ghost" onClick={() => (step === 0 ? onBack() : onStep(step - 1))}>
+              ← {step === 0 ? 'Edge demo' : 'Back'}
+            </button>
+            <button className="btn" onClick={() => (step === 2 ? onExplain() : onStep(step + 1))}>
+              {NEXT_LABEL[step]}
+            </button>
+          </div>
         </div>
       </div>
       <div className="viewport" ref={mount} />

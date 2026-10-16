@@ -257,3 +257,122 @@ main.wide { margin-top: 0; }
 
 .bio-pulse { transform-box: fill-box; transform-origin: center; animation: bio-pulse 1.5s ease-out infinite; }
 @keyframes bio-pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.9); opacity: 0; } }
+/* ---------- clickable words (hover = hint, click = full box) ---------- */
+.term {
+  position: relative; font: inherit; color: inherit; text-align: inherit;
+  background: none; border: 0; border-bottom: 1.5px dotted var(--cyan);
+  padding: 0; margin: 0; cursor: help;
+}
+.term:hover, .term:focus-visible { color: var(--cyan); outline: none; }
+.term::after {
+  content: attr(data-short) "\Aâ–¸ Click for details";
+  position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 60;
+  width: max-content; max-width: 260px; white-space: pre-line; text-align: left;
+  font-size: 0.8rem; font-weight: 600; line-height: 1.4; color: var(--ink);
+  background: rgba(12, 18, 42, 0.97); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px;
+  box-shadow: 0 0 24px rgba(91, 140, 255, 0.35);
+  opacity: 0; transform: translateY(4px); pointer-events: none; transition: opacity 0.15s, transform 0.15s;
+}
+.term:hover::after, .term:focus-visible::after { opacity: 1; transform: none; }
+.term-math .info-i { margin-left: 8px; font-size: 0.9em; color: var(--cyan); }
+.svg-link { cursor: pointer; }
+.svg-link:hover { text-decoration: underline; }
+
+/* ---------- pop-up boxes (word explanations + maths) ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 2100; display: grid; place-items: center; padding: 20px;
+  background: rgba(3, 5, 14, 0.7); backdrop-filter: blur(4px); animation: fade 0.2s ease both;
+}
+.modal {
+  position: relative; width: min(560px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px);
+  overflow-y: auto; padding: 26px 28px; border-radius: 24px;
+  background: rgba(12, 18, 42, 0.98); border: 1px solid var(--line); box-shadow: 0 0 60px rgba(91, 140, 255, 0.4);
+}
+.modal h3 { margin: 8px 0; font-size: 1.4rem; font-weight: 800; }
+.modal p { margin: 0 0 12px; }
+.modal .lead { font-weight: 700; color: var(--cyan); }
+.modal .note { color: var(--muted); font-size: 0.85rem; }
+.modal-close {
+  position: absolute; top: 12px; right: 14px; width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 1.3rem; line-height: 1; cursor: pointer;
+}
+.modal-close:hover { background: rgba(120, 150, 255, 0.16); }
+.modal-close:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+.tag {
+  display: inline-block; font-size: 0.78rem; font-weight: 800; color: #1a1204;
+  background: var(--amber); border-radius: 999px; padding: 3px 12px;
+}
+.does { border-left: 3px solid var(--amber); padding: 2px 0 2px 14px; margin: 14px 0; }
+.does strong { display: block; color: var(--amber); font-size: 0.9rem; }
+.does p { margin: 2px 0 0; }
+.fact {
+  background: rgba(94, 234, 212, 0.08); border: 1px solid rgba(94, 234, 212, 0.3);
+  border-radius: 14px; padding: 10px 14px; font-size: 0.92rem;
+}
+.related { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; color: var(--muted); font-size: 0.85rem; }
+
+/* ---------- maths box ---------- */
+.math-modal { width: min(860px, 100%); }
+.math-controls {
+  position: sticky; top: 0; z-index: 3; margin: 14px -8px 18px; padding: 12px 8px;
+  background: rgba(12, 18, 42, 0.98); border-bottom: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 18px;
+}
+.math-controls label { display: grid; gap: 6px; font-size: 0.82rem; font-weight: 700; }
+.math-controls output { color: var(--cyan); margin-left: 6px; }
+.math-controls input[type='range'] { width: 100%; }
+.math-steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 26px; }
+.math-steps > li { counter-increment: s; position: relative; padding-left: 46px; }
+.math-steps > li::before {
+  content: counter(s); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 800; color: #1a1204; background: linear-gradient(135deg, #ffd166, var(--amber));
+}
+.math-steps h4 { margin: 4px 0 8px; font-size: 1.08rem; }
+.formula {
+  margin: 10px 0; padding: 12px 16px; border-radius: 14px; background: rgba(8, 12, 30, 0.8);
+  border: 1px solid var(--line); font-family: 'Cambria Math', 'STIX Two Math', Georgia, serif;
+  font-size: 1.15rem; overflow-x: auto; white-space: nowrap;
+}
+.frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 4px; }
+.frac > span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 4px 2px; }
+.frac > span:last-child { padding: 2px 4px 0; }
+.math-plot { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--line); margin: 10px 0 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 0.82rem; color: var(--muted); }
+.legend i { display: inline-block; width: 20px; height: 0; border-top: 3px solid; margin-right: 6px; vertical-align: middle; }
+.callout {
+  margin-top: 10px; padding: 12px 16px; border-radius: 14px; font-size: 0.95rem;
+  background: rgba(255, 185, 56, 0.1); border: 1px solid rgba(255, 185, 56, 0.4);
+}
+@media (max-width: 640px) {
+  .math-controls { grid-template-columns: 1fr; }
+  .math-steps > li { padding-left: 0; padding-top: 40px; }
+}
+
+/* ---------- eye frames: step menu, back / next buttons, clickable 3D labels ---------- */
+.stepnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.stepdot {
+  font: inherit; font-size: 0.78rem; font-weight: 700; color: var(--muted); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px;
+  background: transparent; border: 1px solid var(--line); border-radius: 999px;
+}
+.stepdot span {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 0.72rem; background: rgba(120, 150, 255, 0.2); color: var(--ink);
+}
+.stepdot:hover { color: var(--ink); background: rgba(120, 150, 255, 0.12); }
+.stepdot.done span { background: var(--cyan); color: #06241f; }
+.stepdot.active { color: #1a1204; background: linear-gradient(135deg, #ffd166, var(--amber)); border-color: transparent; }
+.stepdot.active span { background: rgba(0, 0, 0, 0.2); color: #1a1204; }
+.stepdot:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+.card .tip { font-size: 0.85rem; color: var(--muted); }
+.card-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lbl.link.on { pointer-events: auto; cursor: pointer; }
+.lbl.link.on:hover { background: rgba(94, 234, 212, 0.22); }
+
+/* ---------- menu: always available, with the current frame highlighted ---------- */
+.menu-scrim { position: fixed; inset: 0; z-index: 899; background: transparent; }
+.menu-panel { width: 280px; max-height: calc(100vh - 80px); overflow-y: auto; }
+.menu-panel h3 { margin: 4px 0 6px; font-size: 0.9rem; color: var(--muted); }
+.menu-panel li button.active { background: rgba(255, 185, 56, 0.16); color: var(--amber); }
+.menu-panel li button b { display: inline-block; width: 1.3em; color: var(--cyan); }
+@media (max-width: 1180px) { header:not(.compact) { padding-top: 64px; } }

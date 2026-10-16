@@ -1,5 +1,6 @@
 // Side-on cross-section of the cells behind one receptive field. It shares the DoG graph's x-axis:
 // every receptor's colour and brightness is its weight in the curve, so the diagram reacts to the sliders.
+// Cell names are clickable: pass onTerm (from useGlossary().openTerm) to open their explanation box.
 import { rf, boundary, SPAN } from './model'
 
 const AMBER = '#ffb938', BLUE = '#5b8cff', ORANGE = '#ff9f43', GREEN = '#34d399', PURPLE = '#a78bfa', CYAN = '#5eead4'
@@ -16,7 +17,7 @@ function Badge({ x, y, sign, color, o = 1 }) {
   )
 }
 
-export default function Biology({ p, rate = 20 }) {
+export default function Biology({ p, rate = 20, onTerm }) {
   const on = p.type === 'on'
   const cCol = on ? AMBER : BLUE, sCol = on ? BLUE : AMBER
   const peak = Math.abs(rf(0, 0, p)) || 1
@@ -24,6 +25,8 @@ export default function Biology({ p, rate = 20 }) {
   const hasS = p.strength >= 0.05
   const sk = Math.min(p.strength, 1.5) / 1.5
   const lbl = { fontSize: 15, fontWeight: 700, fontFamily: 'system-ui, sans-serif' }
+  // makes an SVG text clickable
+  const link = (id) => ({ onClick: () => onTerm?.(id), className: 'svg-link' })
 
   // stimulus extent in model units
   let x1 = -SPAN, x2 = SPAN
@@ -40,7 +43,7 @@ export default function Biology({ p, rate = 20 }) {
     return (
       <g key={key}>
         <path d={`M${xa} 372 V378 H${xb} V372`} stroke={col} strokeWidth="2.5" fill="none" style={{ transition: 'stroke .4s' }} />
-        {xb - xa > 46 && <text x={(xa + xb) / 2} y="398" textAnchor="middle" fill={col} {...lbl}>{text}</text>}
+        {xb - xa > 46 && <text x={(xa + xb) / 2} y="398" textAnchor="middle" fill={col} {...lbl} {...link(text === 'Centre' ? 'centre' : 'surround')}>{text}</text>}
       </g>
     )
   }
@@ -73,13 +76,13 @@ export default function Biology({ p, rate = 20 }) {
       <text x="446" y="66" textAnchor="middle" fill={PURPLE} {...lbl} fontSize="13">to the brain</text>
       <circle className="bio-pulse" cx="300" cy="78" r="26" fill="none" stroke={PURPLE} strokeWidth="3" style={{ animationDuration: `${Math.max(0.25, Math.min(3, 48 / Math.max(rate, 8)))}s` }} />
       <circle cx="300" cy="78" r="26" fill={PURPLE} fillOpacity={0.5 + 0.5 * Math.min(1, rate / 120)} filter="url(#bio-glow)" />
-      <text x="266" y="76" textAnchor="end" fill={PURPLE} {...lbl}>Ganglion cell</text>
+      <text x="266" y="76" textAnchor="end" fill={PURPLE} {...lbl} {...link('ganglion')}>Ganglion cell</text>
       <text x="266" y="95" textAnchor="end" fill="#e8edff" {...lbl} fontSize="13" opacity="0.8">{Math.round(rate)} spikes/s</text>
 
       {/* bipolar cell */}
       <path d="M300 104 V132" stroke={GREEN} strokeWidth="4" filter="url(#bio-glow)" />
       <ellipse cx="300" cy="160" rx="19" ry="29" fill={GREEN} filter="url(#bio-glow)" />
-      <text x="272" y="166" textAnchor="end" fill={GREEN} {...lbl}>Bipolar cell</text>
+      <text x="272" y="166" textAnchor="end" fill={GREEN} {...lbl} {...link('bipolar')}>Bipolar cell</text>
 
       {/* surround pathway: horizontal cell -> bipolar, thickness and glow follow the surround strength */}
       {hasS && [
@@ -93,7 +96,7 @@ export default function Biology({ p, rate = 20 }) {
 
       {/* horizontal cell */}
       <rect x="70" y="225" width="460" height="16" rx="8" fill={ORANGE} fillOpacity={0.3 + 0.6 * sk} filter="url(#bio-glow)" />
-      <text x="74" y="216" fill={ORANGE} {...lbl}>Horizontal cell</text>
+      <text x="74" y="216" fill={ORANGE} {...lbl} {...link('horizontal')}>Horizontal cell</text>
 
       {/* centre/surround boundary, same dashed lines as the DoG graph */}
       {[-r0, r0].map((x) => (
@@ -123,7 +126,7 @@ export default function Biology({ p, rate = 20 }) {
       {bracket(px(-r0), px(r0), cCol, 'Centre', 'c')}
       {hasS && bracket(px(-rOut), px(-r0) - 3, sCol, 'Surround', 'sl')}
       {hasS && bracket(px(r0) + 3, px(rOut), sCol, 'Surround', 'sr')}
-      <text x="300" y="418" textAnchor="middle" fill="#93a0c8" {...lbl} fontSize="13">photoreceptors (same x-axis as the DoG graph)</text>
+      <text x="300" y="418" textAnchor="middle" fill="#93a0c8" {...lbl} fontSize="13" {...link('photoreceptor')}>photoreceptors (same x-axis as the DoG graph)</text>
     </svg>
   )
 }

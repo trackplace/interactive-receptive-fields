@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Biology from './Biology'
+import { Term, useGlossary } from './Glossary'
 import { SPAN, rf, stim, response, boundary } from './model'
 
 const AMBER = [245, 165, 36]
@@ -249,6 +250,7 @@ export default function Explorer() {
     stimulus: 'spot', contrast: 0.5, radius: 2, position: 0,
   })
   const set = (k, v) => setP((o) => ({ ...o, [k]: v }))
+  const { openTerm, openMath } = useGlossary()
   const fieldRef = useRef(null)
   const dogRef = useRef(null)
   const respRef = useRef(null)
@@ -322,13 +324,27 @@ export default function Explorer() {
 
       <section id="visuals">
         <div id="receptive-field-panel" className="box">
-          <h2>Receptive field and stimulus</h2>
+          <h2><Term id="receptivefield">Receptive field</Term> and stimulus</h2>
           <div className="plot"><canvas ref={fieldRef} /></div>
           <p className="note">Amber: light excites the cell. Blue: light suppresses it. The black outline marks where the centre ends and the surround begins.</p>
         </div>
         <div id="dog-panel" className="box">
           <div className="panel-head">
-            <h2>{flipped ? 'Underlying biology' : 'Difference of Gaussians graph'}</h2>
+            {flipped ? (
+              <h2>Underlying biology</h2>
+            ) : (
+              <h2>
+                <button
+                  type="button"
+                  className="term term-math"
+                  data-short="Explaining the maths behind the model: how two bell curves make the Mexican hat."
+                  onClick={() => openMath(p)}
+                  aria-haspopup="dialog"
+                >
+                  Difference of Gaussians graph<span className="info-i" aria-hidden="true">ⓘ</span>
+                </button>
+              </h2>
+            )}
             <button className="btn mini" onClick={() => setFlipped(!flipped)}>
               {flipped ? 'Show DoG graph' : 'Show underlying biology'}
             </button>
@@ -336,22 +352,22 @@ export default function Explorer() {
           <div className="flip-scene">
             <div className={'flip-card' + (flipped ? ' flipped' : '')}>
               <div className="face front"><canvas ref={dogRef} /></div>
-              <div className="face back"><Biology p={p} rate={rate} /></div>
+              <div className="face back"><Biology p={p} rate={rate} onTerm={openTerm} /></div>
             </div>
           </div>
           <p className="note">
             {flipped
-              ? 'Same x-axis as the DoG graph: each receptor\'s colour and brightness is its weight in the curve (amber excites, blue suppresses). Dashed lines mark the centre/surround boundary; the ganglion cell pulses at the predicted firing rate.'
-              : 'Horizontal slice through the field centre. Dashed vertical lines mark the centre/surround boundary.'}
+              ? 'Same x-axis as the DoG graph: each receptor\'s colour and brightness is its weight in the curve (amber excites, blue suppresses). Dashed lines mark the centre/surround boundary; the ganglion cell pulses at the predicted firing rate. Click a cell name to learn more.'
+              : 'Horizontal slice through the field centre. Dashed vertical lines mark the centre/surround boundary. Click the title for the maths.'}
           </p>
         </div>
       </section>
 
       <section id="response-panel" className="box">
         <div className="panel-head">
-          <h2>Action potentials (predicted cell response)</h2>
+          <h2><Term id="actionpotential">Action potentials</Term> (predicted cell response)</h2>
           <p id="readout">
-            Predicted rate: <strong>{rate.toFixed(0)} spikes/s</strong> (rest: 20)
+            Predicted <Term id="firingrate">rate</Term>: <strong>{rate.toFixed(0)} spikes/s</strong> (rest: 20)
           </p>
         </div>
         <div className="plot"><canvas ref={respRef} /></div>

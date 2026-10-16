@@ -8,6 +8,11 @@ export const TOUR_STEPS = [
     text: 'This is a working model of one retinal ganglion cell. Take a quick tour of each section, then experiment freely.',
   },
   {
+    title: 'Learn as you go',
+    target: null,
+    text: 'Words with a dotted underline are clickable: hover for a one-line hint, click for a full explanation. You can also open the menu (top left) at any time to jump to another frame.',
+  },
+  {
     title: 'Cell type',
     target: '#cell-type-row',
     text: 'ON-center cells fire more when light hits their centre. OFF-center cells fire more when their centre goes dark. Switch between them to see the receptive field flip.',
@@ -25,7 +30,7 @@ export const TOUR_STEPS = [
   {
     title: 'DoG graph',
     target: '#dog-panel',
-    text: 'A slice through the middle of the field. A narrow positive Gaussian minus a wide negative one gives the "difference of Gaussians".',
+    text: 'A slice through the middle of the field. A narrow positive Gaussian minus a wide negative one gives the "difference of Gaussians". Click the graph title to see the maths behind it.',
   },
   {
     title: 'Cell response',

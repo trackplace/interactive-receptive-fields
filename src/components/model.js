@@ -1,5 +1,8 @@
 export const SPAN = 10
 
+// 2D Gaussian (bell curve) that integrates to 1. r2 = squared distance from the middle, s = sigma (width)
+export const gauss = (r2, s) => Math.exp(-r2 / (2 * s * s)) / (2 * Math.PI * s * s)
+
 export function rf(x, y, p) {
   const sc = p.center
   const ss = sc * p.surroundW
