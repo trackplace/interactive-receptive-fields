@@ -376,3 +376,45 @@ main.wide { margin-top: 0; }
 .menu-panel li button.active { background: rgba(255, 185, 56, 0.16); color: var(--amber); }
 .menu-panel li button b { display: inline-block; width: 1.3em; color: var(--cyan); }
 @media (max-width: 1180px) { header:not(.compact) { padding-top: 64px; } }
+.intro { display: flex; flex-direction: column; gap: 24px; }
+.intro .split { min-height: 52vh; }
+
+/* research question */
+.rq { border-left: 4px solid var(--amber); }
+.rq strong { color: var(--amber); font-size: 0.9rem; }
+.rq p { margin: 6px 0 0; font-weight: 700; font-size: 1.05rem; }
+
+/* cards in the intro */
+.card-title { margin: 0 0 10px; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em; }
+.card em { color: var(--cyan); font-style: normal; font-weight: 700; }
+.card .card-actions { margin-top: 6px; }
+.field { margin: 0 0 18px; }
+.field label { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 8px; }
+.field output { color: var(--cyan); font-variant-numeric: tabular-nums; }
+.field input[type='range'] { width: 100%; }
+.field .hint { margin: 8px 0 0; font-size: 0.85rem; color: var(--muted); }
+
+/* the picture and its scanning filter */
+.edge-wrap { width: 100%; max-width: 560px; }
+.edge-caption { margin: 10px 4px 0; font-size: 0.85rem; color: var(--muted); }
+.edge-image canvas.seekable { cursor: ew-resize; touch-action: none; }
+
+/* daily-life section */
+.daily h2 { margin: 0 0 8px; font-size: 1.3rem; }
+.daily .daily-lead { margin: 0 0 18px; color: var(--muted); max-width: 70ch; }
+.daily-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.daily-card { padding: 14px 16px; border-radius: 16px; background: rgba(8, 12, 30, 0.6); border: 1px solid var(--line); }
+.daily-card .emoji { font-size: 1.6rem; }
+.daily-card h3 { margin: 6px 0 4px; font-size: 1rem; }
+.daily-card p { margin: 0; font-size: 0.9rem; color: var(--muted); }
+.illusion-title { margin: 26px 0 12px; font-size: 1.1rem; }
+.illusions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; align-items: start; }
+.illusions figure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.illusions svg { width: 100%; max-width: 230px; border-radius: 12px; }
+.illusions figcaption { font-size: 0.88rem; color: var(--muted); max-width: 52ch; }
+.illusions figcaption strong { color: var(--ink); }
+.contrast-pair { display: flex; gap: 0; width: 100%; max-width: 230px; border-radius: 12px; overflow: hidden; }
+.cp { flex: 1; aspect-ratio: 1; display: grid; place-items: center; }
+.cp.dark { background: #0d0d0d; }
+.cp.light { background: #f2f2f2; }
+.cp i { width: 40%; height: 40%; background: #808080; border-radius: 4px; }
