@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Biology from './Biology'
+import { Term, useGlossary } from './Glossary'
 import { SPAN, rf, stim, response, boundary } from './model'
 
 const AMBER = [245, 165, 36]
@@ -257,6 +258,7 @@ type: 'on', center: 1, surroundW: 3, strength: 0.9,
 stimulus: 'spot', contrast: 0.5, radius: 2, position: 0,
 })
 const set = (k, v) => setP((o) => ({ ...o, [k]: v }))
+const { openTerm, openMath } = useGlossary()
 const fieldRef = useRef(null)
 const dogRef = useRef(null)
 const respRef = useRef(null)
@@ -365,14 +367,27 @@ value={p[s.key]} onChange={(e) => set(s.key, parseFloat(e.target.value))}
 
 <section id="visuals">
 <div id="receptive-field-panel" className={boxClass('field')}>
-<h2 {...titleProps('field')}>Receptive field and stimulus {icon('field')}</h2>
+<h2 {...titleProps('field')}><span onClick={(e) => e.stopPropagation()}>
+  <Term id="receptivefield">Receptive field</Term>
+</span>{' '}
+and stimulus {icon('field')}</h2>
 <div className="plot"><canvas ref={fieldRef} /></div>
 <p className="note">Amber: light excites the cell. Blue: light suppresses it. The black outline marks where the centre ends and the surround begins.</p>
 </div>
 
 <div id="dog-panel" className={boxClass('dog')}>
 <div className="panel-head">
+<div className="dog-title">
 <h2 {...titleProps('dog')}>{flipped ? 'Underlying biology' : 'Difference of Gaussians graph'} {icon('dog')}</h2>
+{!flipped && <button
+type="button"
+className="term term-math"
+data-short="Explaining the maths behind the model: how two bell curves make the Mexican hat."
+onClick={() => openMath(p)}
+aria-haspopup="dialog"
+aria-label="Explain the maths behind the Difference of Gaussians graph"
+><span className="info-i" aria-hidden="true">ⓘ</span></button>}
+</div>
 <button className="btn mini" onClick={() => setFlipped(!flipped)}>
 {flipped ? 'Show DoG graph' : 'Show underlying biology'}
 </button>
@@ -380,7 +395,7 @@ value={p[s.key]} onChange={(e) => set(s.key, parseFloat(e.target.value))}
 <div className="flip-scene">
 <div className={'flip-card' + (flipped ? ' flipped' : '')}>
 <div className="face front"><canvas ref={dogRef} /></div>
-<div className="face back"><Biology p={p} rate={rate} /></div>
+<div className="face back"><Biology p={p} rate={rate} onTerm={openTerm} /></div>
 </div>
 </div>
 <p className="note">
@@ -393,9 +408,9 @@ value={p[s.key]} onChange={(e) => set(s.key, parseFloat(e.target.value))}
 
 <section id="response-panel" className={boxClass('resp')}>
 <div className="panel-head">
-<h2 {...titleProps('resp')}>Action potentials (predicted cell response) {icon('resp')}</h2>
+<h2 {...titleProps('resp')}><Term id="actionpotential">Action potentials</Term> (predicted cell response) {icon('resp')}</h2>
 <p id="readout">
-Predicted rate: <strong>{rate.toFixed(0)} spikes/s</strong> (rest: 20)
+Predicted <Term id="firingrate">rate</Term>: <strong>{rate.toFixed(0)} spikes/s</strong> (rest: 20)
 </p>
 <button className="btn mini" onClick={() => setPaused((v) => !v)}>
 {paused ? '▶ Play' : '❚❚ Pause'}
