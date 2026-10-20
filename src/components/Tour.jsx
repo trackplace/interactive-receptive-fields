@@ -30,7 +30,7 @@ export const TOUR_STEPS = [
   {
     title: 'DoG graph',
     target: '#dog-panel',
-    text: 'A slice through the middle of the field. A narrow positive Gaussian minus a wide negative one gives the "difference of Gaussians". Click the graph title to see the maths behind it.',
+    text: 'A slice through the middle of the receptive field. A narrow positive Gaussian combined with a wider negative Gaussian forms the Difference of Gaussians (DoG) curve. This shows how the centre and surround contribute differently to the cell’s response. Click the ⓘ next to the title to see how the model is calculated and what the curve means.',
   },
   {
     title: 'Cell response',
