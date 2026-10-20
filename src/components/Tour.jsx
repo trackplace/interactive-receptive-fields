@@ -35,7 +35,7 @@ export const TOUR_STEPS = [
   {
     title: 'Cell response',
     target: '#response-panel',
-    text: 'Each vertical tick is an action potential. Try uniform illumination: centre and surround cancel and the cell barely changes its rate.',
+    text: 'The oscilloscope shows the voltage inside the cell (mV) over time (s). The line above it shows how the rate is calculated from your stimulus and the receptive field. Slow it down with the Speed menu, and click the ⓘ next to the title to follow every step. Try uniform illumination: centre and surround cancel and the rate barely changes.',
   },
 ]
 

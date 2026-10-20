@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { paintEye, paintBeam, EYE_W, EYE_H } from './eyePainter'
+import { paintEye, paintBeam, paintHighlight, EYE_PARTS, EYE_W, EYE_H } from './eyePainter'
+import { buildRetina, applyRetinaHighlight, RETINA_PARTS } from './retinaModel'
 import { Term, useGlossary } from './Glossary'
 
 // names of the three frames, also used by the menu
@@ -12,18 +13,37 @@ const NEXT_LABEL = ['Zoom in', 'Rotate', 'Explain']
 function StepText({ step }) {
   if (step === 0)
     return (
-      <p>
-        Light enters through the <Term id="cornea">cornea</Term>, passes the <Term id="pupil">pupil</Term>, and is focused by
-        the <Term id="lens">lens</Term> into a beam that lands on the <Term id="retina">retina</Term> at the back of the eye.
-      </p>
-    )
+      <>
+        <h2>How light travels through your eye</h2>
+
+        <p>
+        Your eye works like a camera. Incoming light has to be bent so that it can be focused into a sharp image. This bending is called <Term id="refraction">refraction</Term>. The <Term id="cornea">cornea</Term>, the clear front surface of the eye, does most of the bending. Light then passes through the <Term id="pupil">pupil</Term>, whose size is controlled by the <Term id="iris">iris</Term>, before reaching the <Term id="lens">lens</Term>, which fine-tunes the focus.
+        </p>
+
+        <p>
+        The <Term id="aqueoushumour">aqueous humour</Term> and <Term id="vitreoushumour">vitreous humour</Term> help maintain the eye’s shape and provide a clear path for light, while the <Term id="sclera">sclera</Term> provides structural support.
+        </p>
+
+        <p>
+        The focused light lands on the <Term id="retina">retina</Term> at the back of the eye. Around the <Term id="fovea">fovea</Term>, vision is sharpest. Here, light is converted into neural signals, which are processed in the retina and then sent through the <Term id="opticnerve">optic nerve</Term> to the brain.
+        </p>
+
+    </>
+  )
   if (step === 1)
     return (
-      <p>
-        Up close, the retina is a stack of cells. <Term id="photoreceptor">Photoreceptors</Term> catch the light.{' '}
-        <Term id="bipolar">Bipolar cells</Term> pass the signal to <Term id="ganglion">ganglion cells</Term>, and{' '}
-        <Term id="horizontal">horizontal cells</Term> let neighbouring photoreceptors influence each other.
-      </p>
+      <>
+        <h2>How signals move through the retina</h2>
+        <p>
+          Up close, the retina is a stack of cells. Light first passes through the see-through ganglion and bipolar layers and is
+          caught at the very back by the <Term id="photoreceptor">photoreceptors</Term>, which turn it into an electrical signal.{' '}
+          <Term id="bipolar">Bipolar cells</Term> pass that signal forward to <Term id="ganglion">ganglion cells</Term>, which send
+          it to the brain as spikes. <Term id="horizontal">Horizontal cells</Term> let neighbouring photoreceptors influence each other.
+        </p>
+        <p>
+          That sideways link is the key: each spot of the retina is compared with its surroundings before anything leaves the eye.
+        </p>
+      </>
     )
   return (
     <p>
@@ -34,7 +54,6 @@ function StepText({ step }) {
   )
 }
 
-const R = (a, b) => a + Math.random() * (b - a)
 const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
 
 function canvasTex(w, h, draw) {
@@ -63,101 +82,15 @@ function buildEye(reg) {
   }
   const imgMat = plane(canvasTex(EYE_W, EYE_H, paintEye), 0, false)
   if (EYE_SRC) new THREE.TextureLoader().load(EYE_SRC, (t) => { t.colorSpace = THREE.SRGBColorSpace; imgMat.map = t; imgMat.needsUpdate = true })
+
+  // the glow that lights up one part of the eye (its picture is swapped when another part is chosen)
+  const hlMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+  const hlMesh = new THREE.Mesh(new THREE.PlaneGeometry(EYE_W / 256, EYE_H / 256), hlMat)
+  hlMesh.position.z = 0.1
+  eye.add(hlMesh)
+
   plane(canvasTex(EYE_W, EYE_H, paintBeam), 0.2, true)
-  return eye
-}
-
-function buildRetina() {
-  const g = new THREE.Group() // local +Y = depth axis (ganglion side), light travels toward -Y
-  const AMBER = 0xf5a524, BLUE = 0x4d7cff
-  const P = (c, e, o = {}) => new THREE.MeshPhysicalMaterial({ color: c, emissive: c, emissiveIntensity: e, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.25, sheen: 1, sheenColor: new THREE.Color(0xffffff), ...o })
-  const V3 = (x, y, z) => new THREE.Vector3(x, y, z)
-  const tube = (pts, r, mat) => g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 28, r, 8), mat))
-  const lathe = (pts) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 20)
-
-  // photoreceptor shapes: outer segment (down), inner segment, nucleus, axon + synaptic foot (up)
-  const coneGeo = lathe([[0, -0.68], [0.012, -0.67], [0.03, -0.6], [0.042, -0.52], [0.046, -0.47], [0.036, -0.455], [0.058, -0.42], [0.06, -0.38], [0.044, -0.35], [0.06, -0.32], [0.05, -0.29], [0.012, -0.27], [0.01, -0.21], [0.035, -0.19], [0, -0.17]])
-  const rodGeo = lathe([[0, -0.68], [0.03, -0.67], [0.031, -0.5], [0.033, -0.47], [0.026, -0.455], [0.034, -0.42], [0.036, -0.38], [0.03, -0.35], [0.044, -0.32], [0.04, -0.29], [0.008, -0.27], [0.008, -0.21], [0.022, -0.19], [0, -0.17]])
-  const step = 0.17, centreLines = [], surroundLines = []
-  const cMat = P(AMBER, 0.65), sMat = P(BLUE, 0.3), rMat = P(0x6c8dff, 0.25)
-  let seed = 3
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
-  for (let j = -6; j <= 6; j++)
-    for (let i = -6; i <= 6; i++) {
-      const x = (i + (j % 2) * 0.5) * step + (rnd() - 0.5) * 0.02, z = j * step * 0.87 + (rnd() - 0.5) * 0.02, r = Math.hypot(x, z)
-      if (r > 1) continue
-      const c = r < 0.36, rod = !c && rnd() < 0.5
-      const m = new THREE.Mesh(rod ? rodGeo : coneGeo, c ? cMat : rod ? rMat : sMat)
-      m.position.set(x, 0, z)
-      m.rotation.y = rnd() * 6
-      g.add(m)
-      ;(c ? centreLines : surroundLines).push(x, -0.17, z, c ? 0 : x, c ? 0.2 : -0.08, c ? 0 : z)
-    }
-  const lines = (pts, color) => {
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
-    g.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.7 })))
-  }
-  lines(centreLines, AMBER)
-  lines(surroundLines, BLUE)
-
-  // retinal pigment epithelium (cobblestone base) and tissue layers
-  const rpe = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.08, 64), new THREE.MeshStandardMaterial({ color: 0x2b1812, roughness: 0.7 }))
-  rpe.position.y = -0.74
-  g.add(rpe)
-  ;[[0.52, 0.3, 0xffb3a0], [-0.31, 0.22, 0xffd3c2]].forEach(([y, h, c]) => {
-    const l = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, h, 64), new THREE.MeshPhysicalMaterial({ color: c, transparent: true, opacity: 0.1, roughness: 0.6, depthWrite: false }))
-    l.position.y = y
-    g.add(l)
-  })
-
-  // horizontal cell: wide flat cell with processes reaching down to the photoreceptor feet
-  const hMat = P(0xff9f43, 0.35, { transparent: true, opacity: 0.55 })
-  const hc = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), hMat)
-  hc.scale.set(1.05, 0.035, 1.05)
-  hc.position.y = -0.08
-  g.add(hc)
-  for (let k = 0; k < 7; k++) {
-    const a = (k / 7) * 6.28, rr = 0.55 + (k % 2) * 0.3
-    tube([V3(Math.cos(a) * 0.12, -0.08, Math.sin(a) * 0.12), V3(Math.cos(a) * rr * 0.6, -0.12, Math.sin(a) * rr * 0.6), V3(Math.cos(a) * rr, -0.17, Math.sin(a) * rr)], 0.008, hMat)
-  }
-
-  // bipolar cell: soma with dendrites to the centre receptors, axon up to the ganglion cell
-  const bMat = P(0x10b981, 0.45)
-  const bip = new THREE.Mesh(new THREE.SphereGeometry(0.15, 32, 24), bMat)
-  bip.scale.y = 1.4
-  bip.position.y = 0.3
-  g.add(bip)
-  for (let k = 0; k < 5; k++) {
-    const a = (k / 5) * 6.28, rr = k ? 0.18 : 0
-    tube([V3(0, 0.12, 0), V3(Math.cos(a) * rr * 0.5, 0.03, Math.sin(a) * rr * 0.5), V3(Math.cos(a) * rr, -0.15, Math.sin(a) * rr)], 0.012, bMat)
-  }
-  tube([V3(0, 0.45, 0), V3(0, 0.55, 0), V3(0, 0.6, 0)], 0.016, bMat)
-
-  // ganglion cell: soma, dendritic tree, axon heading toward the optic nerve
-  const gMat = P(0x8b5cf6, 0.4)
-  const gan = new THREE.Mesh(new THREE.SphereGeometry(0.2, 40, 28), gMat)
-  gan.position.y = 0.78
-  g.add(gan)
-  for (let k = 0; k < 9; k++) {
-    const a = (k / 9) * 6.28 + 0.3, rr = 0.2 + (k % 3) * 0.1
-    tube([V3(0, 0.62, 0), V3(Math.cos(a) * rr * 0.5, 0.58, Math.sin(a) * rr * 0.5), V3(Math.cos(a) * rr, 0.5, Math.sin(a) * rr), V3(Math.cos(a) * rr * 1.2, 0.46, Math.sin(a) * rr * 1.2)], 0.01, gMat)
-  }
-  tube([V3(0, 0.96, 0), V3(0.1, 1.05, 0), V3(0.6, 1.08, 0.05), V3(1.3, 1.08, 0.1)], 0.02, gMat)
-
-  // top-down map of the receptive field with discrete boundaries
-  const fm = new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0, depthWrite: false })
-  const fs = new THREE.MeshBasicMaterial({ color: BLUE, transparent: true, opacity: 0, depthWrite: false })
-  const om = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 })
-  const centre = new THREE.Mesh(new THREE.CircleGeometry(0.36, 64), fm)
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.36, 1, 96), fs)
-  ;[centre, ring].forEach((m) => { m.rotation.x = -Math.PI / 2; m.position.y = 1.22; g.add(m) })
-  ;[0.36, 1].forEach((r) => {
-    const pts = []
-    for (let i = 0; i <= 96; i++) pts.push(V3(Math.cos((i / 96) * 6.2832) * r, 1.225, Math.sin((i / 96) * 6.2832) * r))
-    g.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), om))
-  })
-  return { group: g, fieldMats: [fm, fs], outlineMat: om }
+  return { eye, imgMat, hlMat }
 }
 
 // The frame is controlled by the parent (App), so the menu, the Back button and the Next button all share one source of truth.
@@ -165,9 +98,17 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
   const mount = useRef(null)
   const api = useRef(null)
   const first = useRef(true)
-  const { openTerm } = useGlossary()
+  const { openTerm, hoverPart, setHoverPart } = useGlossary()
   const openRef = useRef(openTerm)
   openRef.current = openTerm
+  const setHoverRef = useRef(setHoverPart)
+  setHoverRef.current = setHoverPart
+  // the part the mouse is pointing at (via a word, a label or the picture itself).
+  // Frame 1 lights up parts of the eye, frame 2 lights up the cells of the retina.
+  const eyeHoverRef = useRef(null)
+  const retinaHoverRef = useRef(null)
+  eyeHoverRef.current = step === 0 && EYE_PARTS[hoverPart] ? hoverPart : null
+  retinaHoverRef.current = step === 1 && RETINA_PARTS[hoverPart] ? hoverPart : null
 
   useEffect(() => {
     const el = mount.current
@@ -189,8 +130,8 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
 
     const eyeMats = []
     const reg = (m) => { m.userData.base = m.opacity; m.userData.t = m.transparent; eyeMats.push(m) }
-    const eye = buildEye(reg)
-    const { group: model, fieldMats, outlineMat } = buildRetina()
+    const { eye, imgMat, hlMat } = buildEye(reg)
+    const { group: model, fieldMats, outlineMat, parts } = buildRetina()
     model.position.copy(RET)
     model.visible = false
     scene.add(eye, model)
@@ -198,21 +139,27 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
     const controls = new OrbitControls(camera, renderer.domElement)
     Object.assign(controls, { enabled: false, enableDamping: true, enablePan: false, minDistance: 0.6, maxDistance: 4, autoRotateSpeed: 1.6 })
 
-    // labels (HTML, projected from 3D points every frame). Click one to open its explanation box.
+    // labels (HTML, projected from 3D points every frame). Hover = light up that cell type, click = explanation box.
     const mk = (text, color, local, show, term) => {
       const d = document.createElement('div')
       d.className = 'lbl' + (term ? ' link' : '')
       d.textContent = text
       d.style.borderColor = color
-      if (term) d.addEventListener('click', () => openRef.current(term))
+      if (term) {
+        d.addEventListener('click', () => openRef.current(term))
+        if (RETINA_PARTS[term]) {
+          d.addEventListener('mouseenter', () => setHoverRef.current(term))
+          d.addEventListener('mouseleave', () => setHoverRef.current(null))
+        }
+      }
       el.appendChild(d)
       return { d, local: new THREE.Vector3(...local), show }
     }
     const labels = [
-      mk('Ganglion cell', '#8b5cf6', [1.25, 0.7, 0], (s) => s === 1, 'ganglion'),
-      mk('Bipolar cell', '#10b981', [-1.25, 0.3, 0], (s) => s === 1, 'bipolar'),
-      mk('Horizontal cell', '#ff9f43', [1.25, -0.08, 0], (s) => s === 1, 'horizontal'),
-      mk('Photoreceptors', '#f5a524', [-1.25, -0.5, 0], (s) => s === 1, 'photoreceptor'),
+      mk('Ganglion cell', RETINA_PARTS.ganglion.color, [1.25, 0.7, 0], (s) => s === 1, 'ganglion'),
+      mk('Bipolar cell', RETINA_PARTS.bipolar.color, [-1.25, 0.3, 0], (s) => s === 1, 'bipolar'),
+      mk('Horizontal cell', RETINA_PARTS.horizontal.color, [1.25, -0.08, 0], (s) => s === 1, 'horizontal'),
+      mk('Photoreceptors', RETINA_PARTS.photoreceptor.color, [-1.25, -0.5, 0], (s) => s === 1, 'photoreceptor'),
       mk('Centre', '#f5a524', [0, 1.22, 0], (s) => s === 2, 'centre'),
       mk('Surround', '#4d7cff', [0.75, 1.22, 0], (s) => s === 2, 'surround'),
     ]
@@ -257,11 +204,76 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
     ro.observe(el)
     resize()
 
+    // point at the cells themselves (frame 2): find the cell type under the mouse
+    const ray = new THREE.Raycaster()
+    const ndc = new THREE.Vector2()
+    const canvas = renderer.domElement
+    let pointed = null
+    let downAt = null // where the mouse went down, to tell a click from a drag (rotating)
+    const pick = (e) => {
+      const r = canvas.getBoundingClientRect()
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1)
+      ray.setFromCamera(ndc, camera)
+      const hit = ray.intersectObjects(model.children, false).find((h) => h.object.userData.part)
+      return hit ? hit.object.userData.part : null
+    }
+    const onDown = (e) => { downAt = { x: e.clientX, y: e.clientY } }
+    const onMove = (e) => {
+      if (curStep !== 1 || tw || e.buttons) return // not while dragging
+      const id = pick(e)
+      canvas.style.cursor = id ? 'pointer' : ''
+      if (id !== pointed) { pointed = id; setHoverRef.current(id) }
+    }
+    const onLeave = () => {
+      if (pointed) { pointed = null; setHoverRef.current(null) }
+    }
+    const onClick = (e) => {
+      if (curStep !== 1 || tw) return
+      if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) return // it was a drag, not a click
+      const id = pick(e)
+      if (id) openRef.current(id)
+    }
+    canvas.addEventListener('pointerdown', onDown)
+    canvas.addEventListener('pointermove', onMove)
+    canvas.addEventListener('pointerleave', onLeave)
+    canvas.addEventListener('click', onClick)
+
+    // highlight of the eye: one picture per part, made the first time it is needed
+    const hlTex = {}
+    const texFor = (part) => (hlTex[part] ||= canvasTex(EYE_W, EYE_H, (g) => paintHighlight(g, part)))
+    const warm = Object.keys(EYE_PARTS).map((part, i) => setTimeout(() => texFor(part), 600 + i * 120))
+    const hl = { level: 0, shown: null }
+    // highlight of the retina cells
+    const rl = { level: 0, shown: null, applied: false }
+
     const v = new THREE.Vector3()
-    let raf
+    let raf, last = performance.now() / 1000
     const loop = () => {
       raf = requestAnimationFrame(loop)
       const now = performance.now() / 1000
+      const dt = Math.min(0.1, now - last)
+      last = now
+
+      // eye: fade the glow in and out, and dim the rest of the eye a little so the lit part stands out
+      const want = eyeHoverRef.current
+      if (want && want !== hl.shown) {
+        hl.shown = want
+        hlMat.map = texFor(want)
+        hlMat.needsUpdate = true
+      }
+      hl.level += ((want ? 1 : 0) - hl.level) * Math.min(1, dt * 9)
+      imgMat.color.setScalar(1 - 0.55 * hl.level)
+      hlMat.opacity = hl.level * (0.85 + 0.15 * Math.sin(now * 4)) * cur.alpha
+      hlMat.visible = hl.level > 0.01 && cur.alpha > 0.01
+
+      // retina: light up one cell type, fade the others back
+      const wantR = retinaHoverRef.current
+      if (wantR) rl.shown = wantR
+      rl.level += ((wantR ? 1 : 0) - rl.level) * Math.min(1, dt * 9)
+      const lit = rl.level > 0.005
+      if (lit || rl.applied) applyRetinaHighlight(parts, rl.shown, lit ? rl.level : 0, now)
+      rl.applied = lit
+
       if (tw) {
         const k = tw.dur > 0 ? Math.min(1, (now - tw.t0) / tw.dur) : 1, e = ease(k), t = tw.to
         cur.pos.lerpVectors(tw.p0, t.pos, e)
@@ -272,11 +284,14 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
         cur.f = tw.f0 + (t.f - tw.f0) * e
         if (k >= 1) {
           tw = null
-          if (curStep === 2) {
+          // frames 2 and 3 can be rotated by dragging (frame 3 also turns slowly by itself)
+          if (curStep === 1 || curStep === 2) {
             camera.position.copy(cur.pos)
             controls.target.copy(cur.look)
             controls.enabled = true
-            controls.autoRotate = true
+            controls.autoRotate = curStep === 2
+            controls.minDistance = 0.6
+            controls.maxDistance = curStep === 1 ? 3.5 : 4
           }
         }
       }
@@ -312,6 +327,13 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
 
     return () => {
       cancelAnimationFrame(raf)
+      warm.forEach(clearTimeout)
+      Object.values(hlTex).forEach((t) => t.dispose())
+      canvas.removeEventListener('pointerdown', onDown)
+      canvas.removeEventListener('pointermove', onMove)
+      canvas.removeEventListener('pointermove', onMove)
+      canvas.removeEventListener('pointerleave', onLeave)
+      canvas.removeEventListener('click', onClick)
       ro.disconnect()
       controls.dispose()
       pmrem.dispose()
@@ -346,7 +368,13 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
             ))}
           </nav>
           <StepText step={step} />
-          <p className="tip">Tip: underlined words and the coloured labels are clickable.</p>
+          <p className="tip">
+            {step === 0
+              ? 'Tip: hover over an underlined word and that part of the eye lights up. Click the word for a full explanation.'
+              : step === 1
+                ? 'Tip: hover over an underlined word, a coloured label or a cell in the picture to light it up, and click for a full explanation. Drag to rotate the retina.'
+                : 'Tip: underlined words and the coloured labels are clickable.'}
+          </p>
           <div className="card-actions">
             <button className="btn ghost" onClick={() => (step === 0 ? onBack() : onStep(step - 1))}>
               ← {step === 0 ? 'Edge demo' : 'Back'}

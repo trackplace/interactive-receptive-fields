@@ -62,20 +62,6 @@ export function paintEye(g) {
     g.strokeStyle = i % 2 ? 'rgba(255,255,255,0.35)' : 'rgba(150,100,100,0.25)'; g.lineWidth = 2; g.stroke()
   }
 
-  // ---- eyelids ----
-  const upper = [[612, 510], [560, 498], [505, 470], [480, 400], [495, 320], [570, 250], [700, 215], [760, 250], [740, 320], [700, 405], [650, 470]]
-  ;[upper, mirror(upper)].forEach((lid, k) => {
-    const lg = g.createLinearGradient(430, 0, 900, 0); lg.addColorStop(0, '#ebbfa5'); lg.addColorStop(1, '#c58b78')
-    poly(lid, lg, '#8f5a4a', 3)
-    g.beginPath(); lid.slice(7).forEach((p, i) => (i ? g.lineTo(...p) : g.moveTo(...p)))
-    g.strokeStyle = '#d98686'; g.lineWidth = 10; g.stroke()
-    g.strokeStyle = '#26160f'; g.lineWidth = 3; g.lineCap = 'round'
-    for (let i = 0; i < 16; i++) {
-      const x = 540 + i * 5, y = k ? 780 : 500, d = k ? 1 : -1
-      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x - 50 - i, y + 22 * d * -1 + 10 * d, x - 80 - i * 2, y + (k ? 12 : -2) + i * 2 * d); g.stroke()
-    }
-  })
-
   // ---- vitreous ----
   g.save(); g.beginPath(); g.arc(C.x, C.y, 346, 0, 7); g.clip()
   const vg = g.createRadialGradient(1010, 620, 20, 1010, 640, 346)
@@ -176,4 +162,97 @@ export function paintBeam(g) {
   const sp = g.createRadialGradient(1344, 640, 0, 1344, 640, 70)
   sp.addColorStop(0, 'rgba(255,250,220,0.9)'); sp.addColorStop(0.3, 'rgba(255,200,90,0.5)'); sp.addColorStop(1, 'rgba(255,170,40,0)')
   g.fillStyle = sp; g.fillRect(1250, 550, 200, 180)
+}
+
+// ---- highlights --------------------------------------------------------------------------------
+// The parts of the eye that can light up. The names are used by glossaryData.js (the `part` field).
+export const EYE_PARTS = {
+  cornea: 'Cornea',
+  pupil: 'Pupil',
+  iris: 'Iris',
+  lens: 'Lens',
+  aqueous: 'Aqueous humour',
+  vitreous: 'Vitreous humour',
+  sclera: 'Sclera',
+  retina: 'Retina',
+  fovea: 'Fovea',
+  opticnerve: 'Optic nerve',
+}
+
+// Paints ONE part as a glowing overlay on a transparent canvas of the same size as the eye picture.
+// The shapes use exactly the same coordinates as paintEye, so the glow sits right on top of the part.
+export function paintHighlight(g, part) {
+  const C = { x: 1000, y: 640 }
+  const FILL = 'rgba(94,234,212,0.42)', GLOW = 'rgba(94,234,212,0.95)', EDGE = '#d9fff8'
+  g.clearRect(0, 0, EYE_W, EYE_H)
+  g.lineCap = 'round'
+  g.lineJoin = 'round'
+
+  // a filled shape with a soft glow and a bright edge. `path` adds the shape to the current path.
+  const fillShape = (path) => {
+    g.save()
+    g.shadowColor = GLOW; g.shadowBlur = 46
+    g.beginPath(); path(); g.fillStyle = FILL; g.fill()
+    g.shadowBlur = 0
+    g.beginPath(); path(); g.strokeStyle = EDGE; g.lineWidth = 5; g.stroke()
+    g.restore()
+  }
+  // a thick glowing line (for the thin, curved parts)
+  const strokeShape = (path, width) => {
+    g.save()
+    g.shadowColor = GLOW; g.shadowBlur = 40
+    g.beginPath(); path(); g.strokeStyle = 'rgba(94,234,212,0.7)'; g.lineWidth = width; g.stroke()
+    g.shadowBlur = 0
+    g.beginPath(); path(); g.strokeStyle = EDGE; g.lineWidth = 4; g.stroke()
+    g.restore()
+  }
+  const iris = (s) => () => {
+    const y = (v) => 640 + s * (640 - v)
+    g.moveTo(716, y(436)); g.quadraticCurveTo(772, y(474), 788, y(556))
+  }
+  const cornea = () => {
+    g.arc(891.6, 640, 297.6, rad(132.9), rad(227.1))
+    g.lineTo(713, 439)
+    g.arc(872.8, 640, 256.8, rad(231.5), rad(128.5), true)
+    g.closePath()
+  }
+  const lens = () => g.ellipse(853, 640, 63, 150, 0, 0, 7)
+
+  if (part === 'cornea') fillShape(cornea)
+  else if (part === 'iris') [-1, 1].forEach((s) => strokeShape(iris(s), 34))
+  else if (part === 'pupil') fillShape(() => g.ellipse(790, 640, 30, 92, 0, 0, 7))
+  else if (part === 'lens') fillShape(lens)
+  else if (part === 'sclera') strokeShape(() => g.arc(C.x, C.y, 371, rad(-145), rad(145)), 30)
+  else if (part === 'retina') strokeShape(() => g.arc(C.x, C.y, 334, rad(-128), rad(128)), 46)
+  else if (part === 'fovea') {
+    fillShape(() => g.arc(1331, 640, 30, 0, 7))
+    g.save(); g.setLineDash([10, 12]); g.strokeStyle = GLOW; g.lineWidth = 3
+    g.beginPath(); g.arc(1331, 640, 62, 0, 7); g.stroke(); g.restore()
+  } else if (part === 'opticnerve') fillShape(() => { g.moveTo(1340, 640); g.lineTo(1780, 650); g.lineTo(1810, 800); g.lineTo(1385, 770); g.closePath() })
+  else if (part === 'vitreous' || part === 'aqueous') {
+    // the two fluids are big regions: fill them, then cut away the lens, the iris and the other chamber
+    const tmp = document.createElement('canvas')
+    tmp.width = EYE_W; tmp.height = EYE_H
+    const t = tmp.getContext('2d')
+    t.fillStyle = FILL
+    t.beginPath()
+    if (part === 'vitreous') t.arc(C.x, C.y, 340, 0, 7)
+    else { t.arc(891.6, 640, 297.6, rad(132.9), rad(227.1)); t.arc(C.x, C.y, 350, rad(215), rad(145), true); t.closePath() }
+    t.fill()
+    t.globalCompositeOperation = 'destination-out'
+    t.fillStyle = '#000'
+    t.beginPath(); t.ellipse(853, 640, 66, 153, 0, 0, 7); t.fill()
+    if (part === 'vitreous') t.fillRect(0, 0, 800, EYE_H)
+    else t.fillRect(796, 0, 1400, EYE_H)
+    ;[-1, 1].forEach((s) => {
+      const y = (v) => 640 + s * (640 - v)
+      t.beginPath(); t.moveTo(716, y(436)); t.quadraticCurveTo(772, y(474), 788, y(556))
+      t.lineWidth = 34; t.strokeStyle = '#000'; t.stroke()
+    })
+    g.save()
+    g.shadowColor = GLOW; g.shadowBlur = 36
+    g.drawImage(tmp, 0, 0)
+    g.restore()
+    g.drawImage(tmp, 0, 0)
+  }
 }

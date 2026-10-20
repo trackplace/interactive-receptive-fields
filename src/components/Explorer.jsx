@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Biology from './Biology'
 import { Term, useGlossary } from './Glossary'
-import { SPAN, rf, stim, response, boundary } from './model'
+import { SPAN, rf, stim, response, parts, boundary } from './model'
 
 const AMBER = [245, 165, 36]
 const BLUE = [59, 111, 224]
@@ -15,6 +15,21 @@ const SLIDERS = [
   { key: 'radius', label: 'Spot radius', min: 0.5, max: 10, step: 0.1, only: 'spot' },
   { key: 'position', label: 'Horizontal stimulus position', min: -10, max: 10, step: 0.1, not: 'uniform' },
 ]
+
+// choices for the oscilloscope: how much time fits across the graph, and how fast the graph plays
+const WINDOWS = [
+  { value: 0.5, label: '0.5 s' },
+  { value: 1, label: '1 s' },
+  { value: 2, label: '2 s' },
+]
+const SPEEDS = [
+  { value: 1, label: 'Real time (1×)' },
+  { value: 0.5, label: 'Slow (½×)' },
+  { value: 0.25, label: 'Slower (¼×)' },
+  { value: 0.1, label: 'Slowest (⅒×)' },
+]
+
+const fmt = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2)
 
 // ---- drawing -----------------------------------------------------------
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`
@@ -159,84 +174,163 @@ function drawDog(cv, p) {
   ctx.fillText('dashed: stimulus', m + 130, 16)
 }
 
-// Live scrolling "oscilloscope": spikes are generated in real time at the predicted rate
-function startScope(cv, rateRef) {
-  const PPS = 320
-  let spikes = [], cur = rateRef.current, last = performance.now() / 1000, next = last, raf
+// Live scrolling "oscilloscope" with real axes: membrane potential (mV) against time (s).
+//  - The firing rate decides how fast the voltage climbs from reset (-72 mV) to threshold (-50 mV).
+//    At threshold the cell fires a spike, then the voltage resets.
+//  - `now` is the cell's own clock in seconds. It runs at `speed` x real time, so the graph can be slowed down.
+//    Pausing freezes it, and resuming carries on without a jump.
+//  - cfgRef.current = { win, speed }: seconds across the graph, and playback speed.
+function startScope(cv, rateRef, pausedRef, cfgRef) {
+  const REST = -65, THR = -50, RESET = -72, KEEP = 2.4 // KEEP: seconds of spike history to remember (> largest window)
+  let spikes = [], cur = rateRef.current, now = 0, next = 0, lastReal = performance.now() / 1000, raf
+  const noise = (t) => 0.7 * Math.sin(t * 13) + 0.5 * Math.sin(t * 29 + 1) + 0.4 * Math.sin(t * 47)
+
   const loop = () => {
     raf = requestAnimationFrame(loop)
     const { ctx, w, h } = prep(cv)
-    const TOP = 40, BOT = h - 46
-    const vy = (mv) => TOP + ((40 - mv) / 125) * (BOT - TOP)
-    const now = performance.now() / 1000
-    cur += (rateRef.current - cur) * Math.min(1, (now - last) * 6)
-    last = now
-    while (next <= now) {
-      if (cur > 0.5) spikes.push(next)
-      next += Math.min(0.5, (1 / Math.max(cur, 0.5)) * (0.75 + 0.5 * Math.random())) // fairly regular, so the rate is easy to read
-    }
-    spikes = spikes.filter((t) => now - t < w / PPS + 0.1)
+    const { win, speed } = cfgRef.current
+    const L = 56, RM = 12, TOP = 12, BOT = h - 62 // plot area; the spike lane and the time axis sit below BOT
+    const xr = w - RM, PPS = (xr - L) / win // pixels per second of cell time
+    const vy = (mv) => TOP + ((45 - mv) / 130) * (BOT - TOP)
+    const xOf = (t) => xr - (now - t) * PPS
 
+    const real = performance.now() / 1000
+    const dt = Math.min(0.1, real - lastReal)
+    lastReal = real
+
+    if (!pausedRef.current) {
+      now += dt * speed
+      cur += (rateRef.current - cur) * Math.min(1, dt * 6)
+      if (cur > 0.5) {
+        while (next <= now) {
+          spikes.push(next)
+          next += Math.min(0.5, (1 / cur) * (0.75 + 0.5 * Math.random())) // fairly regular, so the rate is easy to read
+        }
+      } else next = now + 0.1
+      spikes = spikes.filter((t) => now - t < KEEP)
+    }
+
+    // background
     ctx.fillStyle = '#0d1330'
     ctx.fillRect(0, 0, w, h)
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'
     ctx.lineWidth = 1
-    for (let x = ((now * PPS) % 35); x < w; x += 35) { ctx.beginPath(); ctx.moveTo(w - x, 0); ctx.lineTo(w - x, h); ctx.stroke() }
-    for (let mv = 40; mv >= -80; mv -= 20) { ctx.beginPath(); ctx.moveTo(0, vy(mv)); ctx.lineTo(w, vy(mv)); ctx.stroke() }
+
+    // y axis: membrane potential in mV
+    ctx.font = '11px system-ui'
+    for (let mv = 40; mv >= -80; mv -= 20) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+      ctx.beginPath(); ctx.moveTo(L, vy(mv)); ctx.lineTo(xr, vy(mv)); ctx.stroke()
+      ctx.fillStyle = 'rgba(255,255,255,0.7)'
+      ctx.textAlign = 'right'
+      ctx.fillText(String(mv), L - 8, vy(mv) + 4)
+    }
+    ctx.save()
+    ctx.translate(13, (TOP + BOT) / 2)
+    ctx.rotate(-Math.PI / 2)
+    ctx.textAlign = 'center'
+    ctx.fillStyle = '#e8edff'
+    ctx.font = '700 11px system-ui'
+    ctx.fillText('Membrane potential (mV)', 0, 0)
+    ctx.restore()
+
+    // x axis: time in seconds. Ticks are fixed in cell time, so they scroll with the trace.
+    const AX = BOT + 24
+    const tick = win <= 0.5 ? 0.1 : win <= 1 ? 0.2 : 0.5
+    ctx.font = '11px system-ui'
+    for (let k = Math.ceil(Math.max(0, now - win) / tick); k * tick <= now; k++) {
+      const t = k * tick, x = xOf(t)
+      if (x < L - 0.5) continue
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+      ctx.beginPath(); ctx.moveTo(x, TOP); ctx.lineTo(x, AX); ctx.stroke()
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'
+      ctx.beginPath(); ctx.moveTo(x, AX); ctx.lineTo(x, AX + 4); ctx.stroke()
+      ctx.fillStyle = 'rgba(255,255,255,0.7)'
+      ctx.textAlign = 'center'
+      ctx.fillText(t.toFixed(1), x, AX + 17)
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'
+    ctx.lineWidth = 1.5
+    ctx.beginPath(); ctx.moveTo(L, TOP); ctx.lineTo(L, AX); ctx.lineTo(xr, AX); ctx.stroke()
+    ctx.fillStyle = '#e8edff'
+    ctx.font = '700 11px system-ui'
+    ctx.textAlign = 'center'
+    ctx.fillText('Time (s)', (L + xr) / 2, h - 6)
+    ctx.lineWidth = 1
+
+    // threshold and rest
     ctx.setLineDash([6, 5])
-    ctx.strokeStyle = 'rgba(255,120,120,0.6)'
-    ctx.beginPath(); ctx.moveTo(0, vy(-50)); ctx.lineTo(w, vy(-50)); ctx.stroke()
+    ctx.strokeStyle = 'rgba(255,120,120,0.65)'
+    ctx.beginPath(); ctx.moveTo(L, vy(THR)); ctx.lineTo(xr, vy(THR)); ctx.stroke()
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'
+    ctx.beginPath(); ctx.moveTo(L, vy(REST)); ctx.lineTo(xr, vy(REST)); ctx.stroke()
     ctx.setLineDash([])
     ctx.font = '11px system-ui'
-    ctx.fillStyle = 'rgba(255,150,150,0.9)'
-    ctx.fillText('threshold −50 mV', 8, vy(-50) - 5)
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'
-    ctx.fillText('rest −65 mV', 8, vy(-65) + 14)
+    ctx.textAlign = 'right'
+    ctx.fillStyle = 'rgba(255,150,150,0.95)'
+    ctx.fillText('threshold −50 mV', xr - 6, vy(THR) - 5)
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'
+    ctx.fillText('rest −65 mV', xr - 6, vy(REST) + 14)
 
-    const noise = (t) => 0.8 * Math.sin(t * 13) + 0.6 * Math.sin(t * 29 + 1) + 0.5 * Math.sin(t * 47)
+    // membrane potential trace: between two spikes the voltage climbs from reset to threshold.
+    // A bigger push means a faster climb and a shorter interval between spikes.
+    const ev = [...spikes, next] // the last entry is the upcoming spike
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(L, TOP, xr - L, BOT - TOP)
+    ctx.clip()
     ctx.strokeStyle = '#5eead4'
     ctx.lineWidth = 2
     ctx.shadowColor = '#5eead4'
     ctx.shadowBlur = 8
     ctx.beginPath()
-    for (let x = 0; x <= w; x += 2) { const t = now - (w - x) / PPS; ctx[x ? 'lineTo' : 'moveTo'](x, vy(-65 + noise(t))) }
+    let j = 0, started = false
+    for (let x = L; x <= xr; x += 1.5) {
+      const t = now - (xr - x) / PPS
+      if (t < 0) continue
+      while (j + 1 < ev.length && ev[j + 1] <= t) j++
+      let v = REST + noise(t)
+      const hasInterval = ev[j] <= t && j + 1 < ev.length
+      const upcoming = j + 1 === ev.length - 1
+      if (hasInterval && !(upcoming && cur <= 0.5)) {
+        const isi = ev[j + 1] - ev[j], tau = t - ev[j]
+        if (tau < isi) v = RESET + (THR - RESET) * ((1 - Math.exp((-3 * tau) / isi)) / (1 - Math.exp(-3))) + noise(t) * 0.6
+      }
+      started ? ctx.lineTo(x, vy(v)) : ctx.moveTo(x, vy(v))
+      started = true
+    }
     ctx.stroke()
+    // the spikes themselves (drawn wider than the real ~1 ms so they are visible)
     spikes.forEach((t) => {
-      const x = w - (now - t) * PPS
+      const x = xOf(t)
+      if (x < L - 8) return
       ctx.beginPath()
-      ctx.moveTo(x - 2, vy(-60)); ctx.lineTo(x - 0.5, vy(-50)); ctx.lineTo(x, vy(40)); ctx.lineTo(x + 1.5, vy(-78)); ctx.lineTo(x + 5, vy(-65))
+      ctx.moveTo(x - 2, vy(THR - 4)); ctx.lineTo(x, vy(40)); ctx.lineTo(x + 2, vy(-78)); ctx.lineTo(x + 4, vy(RESET))
       ctx.stroke()
     })
-    ctx.shadowBlur = 0
+    ctx.restore()
+
+    // spike lane: one tick per spike
     ctx.strokeStyle = '#ffc247'
     ctx.lineWidth = 2
-    let n = 0
     spikes.forEach((t) => {
-      const x = w - (now - t) * PPS
-      ctx.beginPath(); ctx.moveTo(x, h - 36); ctx.lineTo(x, h - 12); ctx.stroke()
-      if (now - t < 1) n++
+      const x = xOf(t)
+      if (x < L) return
+      ctx.beginPath(); ctx.moveTo(x, BOT + 6); ctx.lineTo(x, BOT + 20); ctx.stroke()
     })
     ctx.fillStyle = 'rgba(255,255,255,0.7)'
-    ctx.fillText('spike times', 8, h - 8)
-    ctx.fillRect(w - 12 - PPS, h - 12, PPS, 2)
-    ctx.fillText('1 s', w - 12 - PPS, h - 17)
-    // rate meter: bar fills from 0 to 120 spikes/s, tick marks the 20/s resting rate
-    const mx = 12, my = 10, mw = 260, frac = Math.min(1, cur / 120)
-    ctx.fillStyle = 'rgba(255,255,255,0.1)'
-    ctx.fillRect(mx, my, mw, 10)
-    const mg = ctx.createLinearGradient(mx, 0, mx + mw, 0)
-    mg.addColorStop(0, '#5eead4'); mg.addColorStop(1, '#ffc247')
-    ctx.fillStyle = mg
-    ctx.shadowColor = frac > 0.5 ? '#ffc247' : '#5eead4'
-    ctx.shadowBlur = 14
-    ctx.fillRect(mx, my, mw * frac, 10)
-    ctx.shadowBlur = 0
-    ctx.fillStyle = 'rgba(255,255,255,0.6)'
-    ctx.fillRect(mx + mw * (20 / 120), my - 3, 2, 16)
+    ctx.font = '11px system-ui'
+    ctx.textAlign = 'right'
+    ctx.fillText('spikes', L - 8, BOT + 17)
+
+    // captions inside the plot
+    ctx.textAlign = 'left'
+    ctx.fillStyle = 'rgba(255,255,255,0.65)'
+    ctx.fillText(speed === 1 ? 'real time' : `slow motion ×${speed}`, L + 8, TOP + 14)
+    if (pausedRef.current) ctx.fillText('paused', L + 8, TOP + 28)
     ctx.font = '700 14px system-ui'
     ctx.fillStyle = '#fff'
     ctx.textAlign = 'right'
-    ctx.fillText(`${Math.round(cur)} spikes/s`, w - 12, 20)
+    ctx.fillText(`${Math.round(cur)} spikes/s`, xr - 6, TOP + 16)
     ctx.textAlign = 'start'
   }
   loop()
@@ -250,13 +344,54 @@ export default function Explorer() {
     stimulus: 'spot', contrast: 0.5, radius: 2, position: 0,
   })
   const set = (k, v) => setP((o) => ({ ...o, [k]: v }))
-  const { openTerm, openMath } = useGlossary()
+  const { openTerm, openMath, openRate } = useGlossary()
   const fieldRef = useRef(null)
   const dogRef = useRef(null)
   const respRef = useRef(null)
   const rateRef = useRef(20)
   const [flipped, setFlipped] = useState(false)
+
+  const [paused, setPaused] = useState(false)
+  const pausedRef = useRef(false)
+  pausedRef.current = paused
+
+  // oscilloscope settings: seconds across the graph and playback speed (slow motion by default)
+  const [win, setWin] = useState(1)
+  const [speed, setSpeed] = useState(0.25)
+  const cfgRef = useRef({ win: 1, speed: 0.25 })
+  cfgRef.current = { win, speed }
+
+  // which panel is enlarged: null, 'field', 'dog' or 'resp'
+  const [big, setBig] = useState(null)
+  const toggle = (name) => setBig((b) => (b === name ? null : name))
+  const titleProps = (name) => ({
+    role: 'button',
+    tabIndex: 0,
+    className: 'clickable',
+    title: big === name ? 'Click to shrink' : 'Click to enlarge',
+    onClick: () => toggle(name),
+    onKeyDown: (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(name) }
+    },
+  })
+  const boxClass = (name) => 'box' + (big === name ? ' enlarged' : '')
+  const icon = (name) => <span aria-hidden="true">{big === name ? '✕' : '⤢'}</span>
+
+  // Esc closes the enlarged panel, and the page behind it stops scrolling
+  useEffect(() => {
+    if (!big) return
+    const onKey = (e) => e.key === 'Escape' && setBig(null)
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [big])
+
   const rate = useMemo(() => response(p), [p])
+  const pt = useMemo(() => parts(p), [p])
+  const rawRate = 20 + 100 * pt.net
 
   const pRef = useRef(p)
   pRef.current = p
@@ -265,7 +400,7 @@ export default function Explorer() {
     drawDog(dogRef.current, p)
   }, [p])
 
-  // redraw the plots whenever their panels are resized
+  // redraw the plots whenever their panels are resized (this also handles enlarging)
   useEffect(() => {
     const redraw = () => { drawField(fieldRef.current, pRef.current); drawDog(dogRef.current, pRef.current) }
     const ro = new ResizeObserver(redraw)
@@ -275,10 +410,12 @@ export default function Explorer() {
   }, [])
 
   useEffect(() => { rateRef.current = rate }, [rate])
-  useEffect(() => startScope(respRef.current, rateRef), [])
+  useEffect(() => startScope(respRef.current, rateRef, pausedRef, cfgRef), [])
 
   return (
     <div className="explorer">
+      {big && <div className="backdrop" onClick={() => setBig(null)} />}
+
       <section id="controls" className="box">
         <div id="cell-type-row">
           <strong>Cell type =</strong>
@@ -323,28 +460,28 @@ export default function Explorer() {
       </section>
 
       <section id="visuals">
-        <div id="receptive-field-panel" className="box">
-          <h2><Term id="receptivefield">Receptive field</Term> and stimulus</h2>
+        <div id="receptive-field-panel" className={boxClass('field')}>
+          <h2 {...titleProps('field')}><span onClick={(e) => e.stopPropagation()}>
+            <Term id="receptivefield">Receptive field</Term>
+          </span>{' '}
+          and stimulus {icon('field')}</h2>
           <div className="plot"><canvas ref={fieldRef} /></div>
           <p className="note">Amber: light excites the cell. Blue: light suppresses it. The black outline marks where the centre ends and the surround begins.</p>
         </div>
-        <div id="dog-panel" className="box">
+
+        <div id="dog-panel" className={boxClass('dog')}>
           <div className="panel-head">
-            {flipped ? (
-              <h2>Underlying biology</h2>
-            ) : (
-              <h2>
-                <button
-                  type="button"
-                  className="term term-math"
-                  data-short="Explaining the maths behind the model: how two bell curves make the Mexican hat."
-                  onClick={() => openMath(p)}
-                  aria-haspopup="dialog"
-                >
-                  Difference of Gaussians graph<span className="info-i" aria-hidden="true">ⓘ</span>
-                </button>
-              </h2>
-            )}
+            <div className="dog-title">
+              <h2 {...titleProps('dog')}>{flipped ? 'Underlying biology' : 'Difference of Gaussians graph'} {icon('dog')}</h2>
+              {!flipped && <button
+                type="button"
+                className="term term-math"
+                data-short="Explaining the maths behind the model: how two bell curves make the Mexican hat."
+                onClick={() => openMath(p)}
+                aria-haspopup="dialog"
+                aria-label="Explain the maths behind the Difference of Gaussians graph"
+              ><span className="info-i" aria-hidden="true">ⓘ</span></button>}
+            </div>
             <button className="btn mini" onClick={() => setFlipped(!flipped)}>
               {flipped ? 'Show DoG graph' : 'Show underlying biology'}
             </button>
@@ -357,19 +494,48 @@ export default function Explorer() {
           </div>
           <p className="note">
             {flipped
-              ? 'Same x-axis as the DoG graph: each receptor\'s colour and brightness is its weight in the curve (amber excites, blue suppresses). Dashed lines mark the centre/surround boundary; the ganglion cell pulses at the predicted firing rate. Click a cell name to learn more.'
-              : 'Horizontal slice through the field centre. Dashed vertical lines mark the centre/surround boundary. Click the title for the maths.'}
+              ? 'Same x-axis as the DoG graph: each receptor\'s colour and brightness is its weight in the curve (amber excites, blue suppresses). Dashed lines mark the centre/surround boundary; the ganglion cell pulses at the predicted firing rate.'
+              : 'Horizontal slice through the field centre. Dashed vertical lines mark the centre/surround boundary.'}
           </p>
         </div>
       </section>
 
-      <section id="response-panel" className="box">
+      <section id="response-panel" className={boxClass('resp')}>
         <div className="panel-head">
-          <h2><Term id="actionpotential">Action potentials</Term> (predicted cell response)</h2>
-          <p id="readout">
-            Predicted <Term id="firingrate">rate</Term>: <strong>{rate.toFixed(0)} spikes/s</strong> (rest: 20)
-          </p>
+          <div className="dog-title">
+            <h2 {...titleProps('resp')}><Term id="actionpotential">Action potentials</Term> (predicted cell response) {icon('resp')}</h2>
+            <button
+              type="button"
+              className="term term-math"
+              data-short="How the firing rate follows from the stimulus and the receptive field parameters."
+              onClick={() => openRate(p)}
+              aria-haspopup="dialog"
+              aria-label="Explain how the firing rate is calculated"
+            ><span className="info-i" aria-hidden="true">ⓘ</span></button>
+          </div>
+          <div className="scope-ctrl">
+            <label>
+              Time window
+              <select value={win} onChange={(e) => setWin(parseFloat(e.target.value))}>
+                {WINDOWS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <label>
+              Speed
+              <select value={speed} onChange={(e) => setSpeed(parseFloat(e.target.value))}>
+                {SPEEDS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <button className="btn mini" onClick={() => setPaused((v) => !v)}>
+              {paused ? '▶ Play' : '❚❚ Pause'}
+            </button>
+          </div>
         </div>
+        <p id="readout" className="rate-line">
+          Net push <strong>R = {fmt(pt.net)}</strong> (centre {fmt(pt.centre)}, surround {fmt(pt.surround)}) →{' '}
+          <Term id="firingrate">rate</Term> = 20 + 100 × R = <strong>{rate.toFixed(0)} spikes/s</strong>
+          {Math.abs(rawRate - rate) > 0.5 && ' (limited to 0–120)'}
+        </p>
         <div className="plot"><canvas ref={respRef} /></div>
       </section>
     </div>
