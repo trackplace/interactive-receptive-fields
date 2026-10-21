@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { TERMS } from './glossaryData'
 import MathModal from './MathModal'
 import RateModal from './RateModal'
@@ -10,12 +11,61 @@ import { RETINA_PARTS } from './retinaModel'
 const Ctx = createContext({ openTerm: () => {}, openMath: () => {}, openRate: () => {}, hoverPart: null, setHoverPart: () => {} })
 export const useGlossary = () => useContext(Ctx)
 
+// The hover hint. It is drawn straight on the page (not inside the card next to the word), so no picture, panel or
+// 3D view can ever cover it. It stays inside the screen: it moves sideways, or below the word, when there is no room.
+function TipPop({ tip }) {
+  const box = useRef(null)
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    const w = el.offsetWidth, h = el.offsetHeight, m = 8
+    const left = Math.max(m, Math.min(tip.left, window.innerWidth - w - m))
+    const top = tip.top - h - m >= m ? tip.top - h - m : tip.bottom + m // above the word, or below it when there is no room
+    el.style.left = left + 'px'
+    el.style.top = top + 'px'
+    el.style.visibility = 'visible'
+  }, [tip])
+  return createPortal(
+    <div ref={box} className="tip-pop" role="tooltip">
+      {tip.text}
+      {'\n'}
+      <span>▸ Click for details</span>
+    </div>,
+    document.body
+  )
+}
+
 // Wrap the whole app in this once (see App.jsx). It owns the pop-up boxes.
 export function GlossaryProvider({ children }) {
   const [termId, setTermId] = useState(null)
   const [math, setMath] = useState(null) // null = closed, otherwise the starting parameters
   const [rate, setRate] = useState(null) // same, for the firing-rate box
   const [hoverPart, setHoverPart] = useState(null) // the part of the eye whose word the mouse is over (lights up in the 3D eye)
+  const [tip, setTip] = useState(null) // the hover hint that is showing: { text, left, top, bottom }
+
+  // Any element with a data-short (the dotted words and the info buttons) gets the hover hint.
+  useEffect(() => {
+    const find = (t) => (t instanceof Element ? t.closest('[data-short]') : null)
+    const show = (e) => {
+      const el = find(e.target)
+      if (!el) return setTip(null)
+      const r = el.getBoundingClientRect()
+      setTip({ text: el.dataset.short, left: r.left, top: r.top, bottom: r.bottom })
+    }
+    const hide = () => setTip(null)
+    document.addEventListener('mouseover', show)
+    document.addEventListener('focusin', show)
+    document.addEventListener('focusout', hide)
+    document.addEventListener('click', hide)
+    window.addEventListener('scroll', hide, true)
+    return () => {
+      document.removeEventListener('mouseover', show)
+      document.removeEventListener('focusin', show)
+      document.removeEventListener('focusout', hide)
+      document.removeEventListener('click', hide)
+      window.removeEventListener('scroll', hide, true)
+    }
+  }, [])
 
   const openTerm = useCallback((id) => {
     setHoverPart(null)
@@ -37,6 +87,7 @@ export function GlossaryProvider({ children }) {
   return (
     <Ctx.Provider value={{ openTerm, openMath, openRate, hoverPart, setHoverPart }}>
       {children}
+      {tip && <TipPop tip={tip} />}
       {termId && <TermModal id={termId} onClose={() => setTermId(null)} />}
       {math && <MathModal initial={math} onClose={() => setMath(null)} />}
       {rate && <RateModal initial={rate} onClose={() => setRate(null)} />}
@@ -114,7 +165,7 @@ function TermModal({ id, onClose }) {
           </div>
         )}
       </div>
-         {split && (t.rf ? <ReceptiveFieldFigure view={t.rf} /> : RETINA_PARTS[t.part] ? <RetinaFigure part={t.part} /> : <EyeFigure part={t.part} />)}
+      {split && (t.rf ? <ReceptiveFieldFigure view={t.rf} /> : RETINA_PARTS[t.part] ? <RetinaFigure part={t.part} /> : <EyeFigure part={t.part} />)}
     </div>
   )
 }

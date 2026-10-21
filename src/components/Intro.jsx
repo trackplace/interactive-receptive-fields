@@ -3,6 +3,7 @@ import { Term } from './Glossary'
 
 const W = 360
 const H = 270
+const SCAN_MS = 10000 // how long the scan takes to cross the picture, in milliseconds (it used to be 3600). Higher = slower.
 const RESEARCH_QUESTION =
   'How does the Difference-of-Gaussians model explain why ON- and OFF-center retinal ganglion cells respond most strongly to edges rather than uniform light?'
 
@@ -64,7 +65,7 @@ const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
 // reveal (0..1) is how much of the picture, from the left, shows the filtered version.
 // It is animated as a scanning sweep, and the person can drag across the picture to scrub it.
 // k is the surround strength: 0 = cells ignore their surround (blurry photo), 1 = full centre-surround (edges only).
-function EdgeImage({ src, started, k, replayKey }) {
+function EdgeImage({ src, started, k, replayKey, onDone }) {
   const cv = useRef(null)
   const origC = useRef(null)
   const dogC = useRef(null)
@@ -120,16 +121,16 @@ function EdgeImage({ src, started, k, replayKey }) {
     playing.current = true
     const t0 = performance.now()
     const tick = (now) => {
-      const t = Math.min(1, (now - t0) / 3600)
+      const t = Math.min(1, (now - t0) / SCAN_MS)
       setReveal(ease(t))
       if (t < 1) raf.current = requestAnimationFrame(tick)
-      else playing.current = false
+      else { playing.current = false; onDone?.() }
     }
     raf.current = requestAnimationFrame(tick)
   }
   useEffect(() => {
     if (!started) { setReveal(0); return }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) setReveal(1)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setReveal(1); onDone?.() }
     else play()
     return () => cancelAnimationFrame(raf.current)
   }, [started, replayKey])
@@ -190,10 +191,48 @@ function EdgeImage({ src, started, k, replayKey }) {
   )
 }
 
+// Small line icons (they replace the emoji). They take the colour of the text around them.
+const Icon = ({ children }) => (
+  <svg className="daily-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {children}
+  </svg>
+)
+const BikeIcon = () => (
+  <Icon>
+    <circle cx="5.5" cy="16.5" r="3.5" />
+    <circle cx="18.5" cy="16.5" r="3.5" />
+    <path d="M5.5 16.5 9 9h6l3.5 7.5M9 9l4.5 7.5M7.5 6.5h3M15 9l-1-2.5h2" />
+  </Icon>
+)
+const BookIcon = () => (
+  <Icon>
+    <path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5v13" />
+  </Icon>
+)
+const FaceIcon = () => (
+  <Icon>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 14.5c1.2 2 6.8 2 8 0" />
+    <circle cx="9" cy="10" r="0.6" fill="currentColor" />
+    <circle cx="15" cy="10" r="0.6" fill="currentColor" />
+  </Icon>
+)
+const SunIcon = () => (
+  <Icon>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" />
+  </Icon>
+)
+const Chevron = () => (
+  <svg className="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6l5 5 5-5" />
+  </svg>
+)
+
 // Everyday situations where "only the changes matter", plus two illusions that are caused by the same circuit
-function DailyLife() {
+function DailyLife({ onExplore }) {
   return (
-    <section className="box daily fade-in">
+    <section id="daily-life" className="box daily fade-in">
       <h2>You use this every second of the day</h2>
       <p className="daily-lead">
         Your retina does not wait for your brain to find the outlines. Cells like the one you are about to simulate do it
@@ -202,22 +241,22 @@ function DailyLife() {
 
       <div className="daily-grid">
         <div className="daily-card">
-          <span className="emoji" aria-hidden="true">🚲</span>
+          <BikeIcon />
           <h3>Spotting a cyclist at dusk</h3>
           <p>You notice the outline against the road long before you can tell what colour their jacket is.</p>
         </div>
         <div className="daily-card">
-          <span className="emoji" aria-hidden="true">📖</span>
+          <BookIcon />
           <h3>Reading this page</h3>
           <p>Letters are just edges between dark ink and bright paper. Blur the edges and reading becomes hard.</p>
         </div>
         <div className="daily-card">
-          <span className="emoji" aria-hidden="true">🙂</span>
+          <FaceIcon />
           <h3>Recognising a face</h3>
           <p>The jaw, eyes and mouth are all contrast edges. Your brain starts from the outline your retina already drew.</p>
         </div>
         <div className="daily-card">
-          <span className="emoji" aria-hidden="true">☀️</span>
+          <SunIcon />
           <h3>Sun to shade</h3>
           <p>A white shirt looks white outdoors and indoors, because cells report contrast with the surroundings, not raw brightness.</p>
         </div>
@@ -250,6 +289,10 @@ function DailyLife() {
           </figcaption>
         </figure>
       </div>
+
+      <div className="daily-end">
+        <button className="btn fun" onClick={onExplore}>Explore the eye →</button>
+      </div>
     </section>
   )
 }
@@ -258,6 +301,23 @@ export default function Intro({ onExplore, imageSrc }) {
   const [filtered, setFiltered] = useState(false)
   const [k, setK] = useState(1)
   const [replay, setReplay] = useState(0)
+  const [scanDone, setScanDone] = useState(false) // the first scan has finished
+  const [seenDaily, setSeenDaily] = useState(false) // the "every second of the day" section has been on screen
+
+  // notice when the section below has been reached, so the scroll hint can disappear
+  useEffect(() => {
+    if (!filtered) return
+    const el = document.getElementById('daily-life')
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setSeenDaily(true), { threshold: 0.2 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [filtered])
+
+  const goDaily = () => {
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    document.getElementById('daily-life')?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' })
+  }
 
   return (
     <div className="intro">
@@ -306,7 +366,7 @@ export default function Intro({ onExplore, imageSrc }) {
 
               <div className="card-actions">
                 <button className="btn ghost" onClick={() => setReplay((r) => r + 1)}>Replay scan</button>
-                <button className="btn" onClick={onExplore}>Explore the eye →</button>
+                <button className="btn" onClick={goDaily}>See where you use this<Chevron /></button>
               </div>
             </div>
           )}
@@ -314,7 +374,7 @@ export default function Intro({ onExplore, imageSrc }) {
 
         <div className="stage-visual">
           <div className="edge-wrap">
-            <EdgeImage src={imageSrc} started={filtered} k={k} replayKey={replay} />
+            <EdgeImage src={imageSrc} started={filtered} k={k} replayKey={replay} onDone={() => setScanDone(true)} />
             <p className="edge-caption">
               {filtered
                 ? 'Left of the scan line: what ganglion cells report. Right: the original photo. Drag across the picture to compare.'
@@ -324,7 +384,14 @@ export default function Intro({ onExplore, imageSrc }) {
         </div>
       </div>
 
-      {filtered && <DailyLife />}
+      {filtered && <DailyLife onExplore={onExplore} />}
+
+      {filtered && scanDone && !seenDaily && (
+        <button className="scroll-cue" onClick={goDaily}>
+          Why does this matter? Scroll down
+          <Chevron />
+        </button>
+      )}
     </div>
   )
 }

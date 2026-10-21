@@ -466,7 +466,7 @@ export default function Explorer() {
           </span>{' '}
           and stimulus {icon('field')}</h2>
           <div className="plot"><canvas ref={fieldRef} /></div>
-          <p className="note">Amber: light excites the cell. Blue: light suppresses it. The black outline marks where the centre ends and the surround begins.</p>
+          <p className="note">Amber (+): light here excites the cell. Blue (−): light here suppresses it. The inner white circle marks where the centre ends and the surround begins; the outer one is where the surround ends. The dashed cyan outline is the stimulus.</p>
         </div>
 
         <div id="dog-panel" className={boxClass('dog')}>
@@ -495,7 +495,7 @@ export default function Explorer() {
           <p className="note">
             {flipped
               ? 'Same x-axis as the DoG graph: each receptor\'s colour and brightness is its weight in the curve (amber excites, blue suppresses). Dashed lines mark the centre/surround boundary; the ganglion cell pulses at the predicted firing rate.'
-              : 'Horizontal slice through the field centre. Dashed vertical lines mark the centre/surround boundary.'}
+              : 'Horizontal slice through the middle of the field. White curve: how sensitive the cell is at each position. Dashed cyan: the stimulus. Dashed vertical lines: where the curve crosses zero, so where the centre ends and the surround begins.'}
           </p>
         </div>
       </section>
