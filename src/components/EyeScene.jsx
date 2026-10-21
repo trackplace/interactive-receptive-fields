@@ -45,12 +45,24 @@ function StepText({ step }) {
         </p>
       </>
     )
-  return (
-    <p>
-      Seen from above, the cells feeding one ganglion cell form a <Term id="receptivefield">receptive field</Term>: a small{' '}
-      <Term id="centre">centre</Term> (amber) wrapped by a ring called the <Term id="surround">surround</Term> (blue). The two work
-      against each other, which is how your eye detects <Term id="contrast">contrast</Term>. Drag to look around.
-    </p>
+    return (
+    <>
+      <h2>How the receptive field detects contrast</h2>
+      <p>
+        Seen from above, the cells feeding one ganglion cell form its <Term id="receptivefield">receptive field</Term>: a small{' '}
+        <Term id="centre">centre</Term> (amber) inside a ring, the <Term id="surround">surround</Term> (blue). This is the{' '}
+        <Term id="oncentre">ON-center cell</Term> our whole model is about. Its centre is the <strong>ON zone</strong>: light
+        there excites the cell. Its surround is the <strong>OFF zone</strong>: light there suppresses it.
+      </p>
+      <p>
+        The two zones are <em>antagonistic</em>: they work against each other. Light that covers both equally cancels out and the
+        cell hardly reacts. Only when they get different light, as at an edge, does one zone win. That is how the cell detects{' '}
+        <Term id="contrast">contrast</Term> instead of brightness.
+      </p>
+      <p>
+        The <Term id="offcentre">OFF-center cell</Term> is the mirror image: its centre is the OFF zone and its surround is the ON zone.
+      </p>
+    </>
   )
 }
 
@@ -137,7 +149,7 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
     scene.add(eye, model)
 
     const controls = new OrbitControls(camera, renderer.domElement)
-    Object.assign(controls, { enabled: false, enableDamping: true, enablePan: false, minDistance: 0.6, maxDistance: 4, autoRotateSpeed: 1.6 })
+    Object.assign(controls, { enabled: false, enableDamping: true, enablePan: false, minDistance: 0.6, maxDistance: 4 })
 
     // labels (HTML, projected from 3D points every frame). Hover = light up that cell type, click = explanation box.
     const mk = (text, color, local, show, term) => {
@@ -284,12 +296,11 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
         cur.f = tw.f0 + (t.f - tw.f0) * e
         if (k >= 1) {
           tw = null
-          // frames 2 and 3 can be rotated by dragging (frame 3 also turns slowly by itself)
+          // frames 2 and 3 can be rotated by dragging (nothing turns by itself)
           if (curStep === 1 || curStep === 2) {
             camera.position.copy(cur.pos)
             controls.target.copy(cur.look)
             controls.enabled = true
-            controls.autoRotate = curStep === 2
             controls.minDistance = 0.6
             controls.maxDistance = curStep === 1 ? 3.5 : 4
           }
@@ -373,7 +384,7 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
               ? 'Tip: hover over an underlined word and that part of the eye lights up. Click the word for a full explanation.'
               : step === 1
                 ? 'Tip: hover over an underlined word, a coloured label or a cell in the picture to light it up, and click for a full explanation. Drag to rotate the retina.'
-                : 'Tip: underlined words and the coloured labels are clickable.'}
+                : 'Tip: drag to rotate, scroll to zoom. Underlined words and the coloured labels are clickable.'}
           </p>
           <div className="card-actions">
             <button className="btn ghost" onClick={() => (step === 0 ? onBack() : onStep(step - 1))}>

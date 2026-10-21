@@ -181,6 +181,7 @@ export const TERMS = {
     related: ['receptivefield', 'actionpotential', 'oncentre'],
   },
   receptivefield: {
+    rf: 'field',
     title: 'Receptive field',
     cat: 'Model concept',
     short: 'The patch of retina that can change one cell’s firing.',
@@ -192,6 +193,7 @@ export const TERMS = {
     related: ['centre', 'surround', 'dog'],
   },
   centre: {
+    rf: 'centre',
     title: 'Centre',
     cat: 'Model concept',
     short: 'The small middle zone of a receptive field.',
@@ -201,6 +203,7 @@ export const TERMS = {
     related: ['surround', 'oncentre', 'offcentre'],
   },
   surround: {
+    rf: 'surround',
     title: 'Surround',
     cat: 'Model concept',
     short: 'The ring around the centre, with the opposite effect.',
@@ -211,6 +214,7 @@ export const TERMS = {
     related: ['centre', 'horizontal', 'lateralinhibition'],
   },
   oncentre: {
+    rf: 'oncentre',
     title: 'ON-center cell',
     cat: 'Model concept',
     short: 'Fires more when light falls on its centre.',
@@ -221,6 +225,7 @@ export const TERMS = {
     related: ['offcentre', 'receptivefield'],
   },
   offcentre: {
+    rf: 'offcentre',
     title: 'OFF-center cell',
     cat: 'Model concept',
     short: 'Fires more when its centre goes dark.',
@@ -262,6 +267,7 @@ export const TERMS = {
     related: ['actionpotential', 'membranepotential'],
   },
   contrast: {
+    rf: 'field',
     title: 'Contrast',
     cat: 'Model concept',
     short: 'The difference in brightness between neighbouring regions.',

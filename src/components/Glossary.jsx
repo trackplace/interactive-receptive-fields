@@ -4,6 +4,7 @@ import MathModal from './MathModal'
 import RateModal from './RateModal'
 import EyeFigure from './EyeFigure'
 import RetinaFigure from './RetinaFigure'
+import ReceptiveFieldFigure from './ReceptiveFieldFigure'
 import { RETINA_PARTS } from './retinaModel'
 
 const Ctx = createContext({ openTerm: () => {}, openMath: () => {}, openRate: () => {}, hoverPart: null, setHoverPart: () => {} })
@@ -82,7 +83,7 @@ function TermModal({ id, onClose }) {
 
   if (!t) return null
   // words for a part of the eye open as two halves: the explanation on the left, the eye with that part lit up on the right
-  const split = Boolean(t.part)
+  const split = Boolean(t.part || t.rf)
   return (
     <div className={'modal-backdrop' + (split ? ' eye-split' : '')} onClick={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={t.title} onClick={(e) => e.stopPropagation()}>
@@ -113,7 +114,7 @@ function TermModal({ id, onClose }) {
           </div>
         )}
       </div>
-         {split && (RETINA_PARTS[t.part] ? <RetinaFigure part={t.part} /> : <EyeFigure part={t.part} />)}
+         {split && (t.rf ? <ReceptiveFieldFigure view={t.rf} /> : RETINA_PARTS[t.part] ? <RetinaFigure part={t.part} /> : <EyeFigure part={t.part} />)}
     </div>
   )
 }
