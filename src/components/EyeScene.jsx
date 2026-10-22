@@ -17,19 +17,19 @@ function StepText({ step }) {
         <h2>How light travels through your eye</h2>
 
         <p>
-        Your eye works like a camera. Incoming light has to be bent so that it can be focused into a sharp image. This bending is called <Term id="refraction">refraction</Term>. The <Term id="cornea">cornea</Term>, the clear front surface of the eye, does most of the bending. Light then passes through the <Term id="pupil">pupil</Term>, whose size is controlled by the <Term id="iris">iris</Term>, before reaching the <Term id="lens">lens</Term>, which fine-tunes the focus.
+          Your eye works like a camera, and its first job is to bend light into a sharp image. This bending is called{' '}
+          <Term id="refraction">refraction</Term>. The journey begins at the <Term id="cornea">cornea</Term>, the clear window at the
+          front of the eye, which does most of the bending. The light then slips through the <Term id="pupil">pupil</Term>, an opening
+          that widens and narrows with the brightness, and reaches the <Term id="lens">lens</Term>, which fine-tunes the focus.
         </p>
 
         <p>
-        The <Term id="aqueoushumour">aqueous humour</Term> and <Term id="vitreoushumour">vitreous humour</Term> help maintain the eye’s shape and provide a clear path for light, while the <Term id="sclera">sclera</Term> provides structural support.
+          The focused light finally lands on the <Term id="retina">retina</Term> at the back of the eye, where it is turned into
+          electrical signals. These signals are already processed there, and then travel along the <Term id="opticnerve">optic nerve</Term> to
+          the brain.
         </p>
-
-        <p>
-        The focused light lands on the <Term id="retina">retina</Term> at the back of the eye. Around the <Term id="fovea">fovea</Term>, vision is sharpest. Here, light is converted into neural signals, which are processed in the retina and then sent through the <Term id="opticnerve">optic nerve</Term> to the brain.
-        </p>
-
-    </>
-  )
+      </>
+    )
   if (step === 1)
     return (
       <>
