@@ -30,12 +30,12 @@ export const TOUR_STEPS = [
   {
     title: 'DoG graph',
     target: '#dog-panel',
-    text: 'A slice through the middle of the field. A narrow positive Gaussian minus a wide negative one gives the "difference of Gaussians". Click the graph title to see the maths behind it.',
+    text: 'A slice through the middle of the receptive field. A narrow positive Gaussian combined with a wider negative Gaussian forms the Difference of Gaussians (DoG) curve. This shows how the centre and surround contribute differently to the cell’s response. Click the ⓘ next to the title to see how the model is calculated and what the curve means.',
   },
   {
     title: 'Cell response',
     target: '#response-panel',
-    text: 'Each vertical tick is an action potential. Try uniform illumination: centre and surround cancel and the cell barely changes its rate.',
+    text: 'The oscilloscope shows the voltage inside the cell (mV) over time (s). The line above it shows how the rate is calculated from your stimulus and the receptive field. Slow it down with the Speed menu, and click the ⓘ next to the title to follow every step. Try uniform illumination: centre and surround cancel and the rate barely changes.',
   },
 ]
 

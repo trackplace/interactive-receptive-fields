@@ -5,6 +5,7 @@ import EyeScene from './components/EyeScene'
 import Explorer from './components/Explorer'
 import Tour from './components/Tour'
 import Menu from './components/Menu'
+import SourcesButton from './components/SourcesButton'
 import { GlossaryProvider } from './components/Glossary'
 
 // stage: 'intro' (image + DoG + explanation) -> 'eye' (3 frames: eyeStep 0, 1, 2) -> 'explorer'
@@ -39,7 +40,8 @@ export default function App() {
           setTour(i)
         }}
       />
-
+      
+      <SourcesButton slide={current} />
       <header className={stage === 'explorer' ? 'compact' : ''}>
         <h1>ON and OFF Retinal Cell Model</h1>
         <hr />
