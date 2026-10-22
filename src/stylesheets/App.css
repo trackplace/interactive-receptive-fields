@@ -72,7 +72,7 @@ canvas { width: 100%; height: auto; display: block; }
 #readout strong { color: var(--cyan); text-shadow: 0 0 12px rgba(94, 234, 212, 0.7); }
 
 /* ---------- stages ---------- */
-.split { display: grid; grid-template-columns: minmax(280px, 1fr) 1.6fr; gap: 32px; min-height: 66vh; }
+.split { display: grid; grid-template-columns: minmax(280px, 1fr) 1.6fr; gap: 32px ;min-height: 66vh; }
 .side { display: flex; align-items: center; }
 .stage-visual { display: flex; align-items: center; justify-content: center; }
 .card { padding: 24px 26px; }
