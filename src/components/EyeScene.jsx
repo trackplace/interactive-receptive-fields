@@ -45,7 +45,7 @@ function StepText({ step }) {
         </p>
       </>
     )
-    return (
+  return (
     <>
       <h2>How the receptive field detects contrast</h2>
       <p>
@@ -82,6 +82,49 @@ function canvasTex(w, h, draw) {
 const EYE_SRC = null // set to '/my-eye.jpg' to use a real photo instead of the painted eye (then adjust RET)
 const RET = new THREE.Vector3(1.25, 0, 0) // fovea position in the picture, in world units
 
+// Turns the painted highlight into: part at full brightness + crisp outline + soft outer glow.
+// Works from the alpha of whatever paintHighlight draws, so it needs no changes in eyePainter.
+let eyeCanvas = null
+function makeHighlightCanvas(part) {
+  const w = EYE_W, h = EYE_H
+  const mk = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c }
+
+  const src = mk()
+  paintHighlight(src.getContext('2d'), part)
+
+  // hard silhouette of the part (alpha thresholded)
+  const img = src.getContext('2d').getImageData(0, 0, w, h)
+  const d = img.data
+  for (let i = 0; i < d.length; i += 4) { const on = d[i + 3] > 60; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = on ? 255 : 0 }
+  const mask = mk()
+  mask.getContext('2d').putImageData(img, 0, 0)
+
+  // the real eye picture, cut out to the part, so the part keeps full brightness
+  if (!eyeCanvas) { eyeCanvas = mk(); paintEye(eyeCanvas.getContext('2d'), w, h) }
+  const cut = mk(), cx = cut.getContext('2d')
+  cx.drawImage(eyeCanvas, 0, 0)
+  cx.globalCompositeOperation = 'destination-in'
+  cx.drawImage(mask, 0, 0)
+
+  // outline: the silhouette grown by a few px, minus the silhouette itself
+  const ring = mk(), rx = ring.getContext('2d'), R = Math.max(2, w / 350)
+  for (let a = 0; a < 16; a++) rx.drawImage(mask, Math.cos((a / 16) * Math.PI * 2) * R, Math.sin((a / 16) * Math.PI * 2) * R)
+  rx.globalCompositeOperation = 'destination-out'
+  rx.drawImage(mask, 0, 0)
+
+  const out = mk(), ox = out.getContext('2d')
+  ox.shadowColor = 'rgba(56, 186, 30, 0.95)'
+  ox.shadowBlur = w / 40
+  ox.drawImage(ring, 0, 0); ox.drawImage(ring, 0, 0) // outer glow (twice = stronger)
+  ox.shadowBlur = 0
+  ox.drawImage(cut, 0, 0)
+  ox.globalAlpha = 0.45 // keep a little of the original tint on top
+  ox.drawImage(src, 0, 0)
+  ox.globalAlpha = 1
+  ox.drawImage(ring, 0, 0) // crisp outline on top
+  return out
+}
+
 function buildEye(reg) {
   const eye = new THREE.Group()
   const plane = (tex, z, additive) => {
@@ -95,8 +138,9 @@ function buildEye(reg) {
   const imgMat = plane(canvasTex(EYE_W, EYE_H, paintEye), 0, false)
   if (EYE_SRC) new THREE.TextureLoader().load(EYE_SRC, (t) => { t.colorSpace = THREE.SRGBColorSpace; imgMat.map = t; imgMat.needsUpdate = true })
 
-  // the glow that lights up one part of the eye (its picture is swapped when another part is chosen)
-  const hlMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+  // the glow that lights up one part of the eye (its picture is swapped when another part is chosen).
+  // toneMapped: false keeps the highlight at full brightness instead of being dulled by the renderer's tone mapping
+  const hlMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, toneMapped: false })
   const hlMesh = new THREE.Mesh(new THREE.PlaneGeometry(EYE_W / 256, EYE_H / 256), hlMat)
   hlMesh.position.z = 0.1
   eye.add(hlMesh)
@@ -250,9 +294,9 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
     canvas.addEventListener('pointerleave', onLeave)
     canvas.addEventListener('click', onClick)
 
-    // highlight of the eye: one picture per part, made the first time it is needed
+    // highlight of the eye: one picture per part (part at full brightness + outline + glow), made the first time it is needed
     const hlTex = {}
-    const texFor = (part) => (hlTex[part] ||= canvasTex(EYE_W, EYE_H, (g) => paintHighlight(g, part)))
+    const texFor = (part) => (hlTex[part] ||= canvasTex(EYE_W, EYE_H, (g) => g.drawImage(makeHighlightCanvas(part), 0, 0)))
     const warm = Object.keys(EYE_PARTS).map((part, i) => setTimeout(() => texFor(part), 600 + i * 120))
     const hl = { level: 0, shown: null }
     // highlight of the retina cells
@@ -266,7 +310,7 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
       const dt = Math.min(0.1, now - last)
       last = now
 
-      // eye: fade the glow in and out, and dim the rest of the eye a little so the lit part stands out
+      // eye: fade the highlight in and out, and dim the rest of the eye (slightly cool) so the lit part stands out
       const want = eyeHoverRef.current
       if (want && want !== hl.shown) {
         hl.shown = want
@@ -274,8 +318,8 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
         hlMat.needsUpdate = true
       }
       hl.level += ((want ? 1 : 0) - hl.level) * Math.min(1, dt * 9)
-      imgMat.color.setScalar(1 - 0.55 * hl.level)
-      hlMat.opacity = hl.level * (0.85 + 0.15 * Math.sin(now * 4)) * cur.alpha
+      imgMat.color.setRGB(1 - 0.72 * hl.level, 1 - 0.68 * hl.level, 1 - 0.52 * hl.level)
+      hlMat.opacity = hl.level * (0.94 + 0.06 * Math.sin(now * 4)) * cur.alpha
       hlMat.visible = hl.level > 0.01 && cur.alpha > 0.01
 
       // retina: light up one cell type, fade the others back
@@ -341,7 +385,6 @@ export default function EyeScene({ step, onStep, onBack, onExplain }) {
       warm.forEach(clearTimeout)
       Object.values(hlTex).forEach((t) => t.dispose())
       canvas.removeEventListener('pointerdown', onDown)
-      canvas.removeEventListener('pointermove', onMove)
       canvas.removeEventListener('pointermove', onMove)
       canvas.removeEventListener('pointerleave', onLeave)
       canvas.removeEventListener('click', onClick)

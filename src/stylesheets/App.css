@@ -554,3 +554,33 @@ html, body { overflow-x: clip; }
 @media (max-width: 760px) {
   .sources-btn { top: 8px; right: 14px; }
 }
+/* ---------- enlarge a panel (click its title) ---------- */
+h2.clickable {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+h2.clickable:hover { color: var(--cyan); }
+h2.clickable:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+h2.clickable span { font-size: 0.9em; opacity: 0.7; }
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 20, 0.8);
+  z-index: 50;
+}
+.box.enlarged {
+  position: fixed;
+  inset: 64px 4vw 4vh;
+  z-index: 60;
+  margin: 0;
+  padding: 18px 24px;
+  overflow: auto;
+  background: rgba(12, 18, 42, 0.98);
+  box-shadow: 0 0 60px rgba(91, 140, 255, 0.35);
+}
+
+.box.enlarged .note { font-size: 0.9rem; }

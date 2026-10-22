@@ -503,7 +503,12 @@ export default function Explorer() {
       <section id="response-panel" className={boxClass('resp')}>
         <div className="panel-head">
           <div className="dog-title">
-            <h2 {...titleProps('resp')}><Term id="actionpotential">Action potentials</Term> (predicted cell response) {icon('resp')}</h2>
+            <h2 {...titleProps('resp')}>
+              <span onClick={(e) => e.stopPropagation()}>
+                <Term id="actionpotential">Action potentials</Term>
+              </span>{' '}
+              (predicted cell response) {icon('resp')}
+            </h2>
             <button
               type="button"
               className="term term-math"
