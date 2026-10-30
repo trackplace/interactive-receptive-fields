@@ -46,11 +46,6 @@ export const REFS = {
     pmid: '3466186',
     used: 'Builds a two-dimensional receptive field from Gaussian components and predicts how it responds to a stimulus.',
   },
-  dayan2001: {
-    cite: 'Dayan & Abbott 2001',
-    full: 'Dayan, P., & Abbott, L. F. (2001). Theoretical Neuroscience: Computational and Mathematical Modeling of Neural Systems (chapter 2). MIT Press.',
-    used: 'Textbook treatment of receptive fields as weighting functions, the difference-of-Gaussians field, and the firing rate as the weighted sum of a stimulus.',
-  },
   marr1980: {
     cite: 'Marr & Hildreth 1980',
     full: 'Marr, D., & Hildreth, E. (1980). Theory of edge detection. Proceedings of the Royal Society of London. Series B, Biological Sciences, 207(1167), 187–217.',
@@ -65,16 +60,6 @@ export const REFS = {
   },
 
   // ---- the eye and the retina ----
-  purves2018: {
-    cite: 'Purves et al. 2018',
-    full: 'Purves, D., Augustine, G. J., Fitzpatrick, D., Hall, W. C., LaMantia, A.-S., & White, L. E. (Eds.). (2018). Neuroscience (6th ed.). Oxford University Press. See the chapter on the eye.',
-    used: 'Textbook source for the optics of the eye: cornea, pupil and lens.',
-  },
-  kandel2021: {
-    cite: 'Kandel et al. 2021',
-    full: 'Kandel, E. R., Koester, J. D., Mack, S. H., & Siegelbaum, S. A. (Eds.). (2021). Principles of Neural Science (6th ed.). McGraw-Hill. See the chapters on the retina and on low-level visual processing.',
-    used: 'Textbook source for the layers of the retina, ON and OFF bipolar cells, horizontal cells and the optic nerve.',
-  },
   nelson: {
     cite: 'Nelson (Webvision)',
     full: 'Nelson, R. Visual responses of ganglion cells. In H. Kolb, E. Fernandez, & R. Nelson (Eds.), Webvision: The Organization of the Retina and Visual System. webvision.pitt.edu',

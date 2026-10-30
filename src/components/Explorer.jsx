@@ -174,6 +174,24 @@ function drawDog(cv, p) {
   ctx.fillText('dashed: stimulus', m + 130, 16)
 }
 
+// Label with a dark backing pill, right-aligned at x. Drawn after the trace so the
+// trace can never hide the text, and the pill keeps it readable if the trace passes behind.
+function pill(ctx, text, x, y, color, size = 12, weight = 700) {
+  ctx.font = `${weight} ${size}px system-ui`
+  const w = ctx.measureText(text).width
+  const padX = 7, h = size + 7
+  ctx.fillStyle = 'rgba(8, 12, 30, 0.92)'
+  ctx.beginPath()
+  ctx.roundRect(x - w - padX, y - size - 1, w + 2 * padX, h, h / 2)
+  ctx.fill()
+  ctx.strokeStyle = color
+  ctx.lineWidth = 1
+  ctx.stroke()
+  ctx.fillStyle = color
+  ctx.textAlign = 'right'
+  ctx.fillText(text, x, y)
+}
+
 // Live scrolling "oscilloscope" with real axes: membrane potential (mV) against time (s).
 //  - The firing rate decides how fast the voltage climbs from reset (-72 mV) to threshold (-50 mV).
 //    At threshold the cell fires a spike, then the voltage resets.
@@ -257,19 +275,13 @@ function startScope(cv, rateRef, pausedRef, cfgRef) {
     ctx.fillText('Time (s)', (L + xr) / 2, h - 6)
     ctx.lineWidth = 1
 
-    // threshold and rest
+    // threshold and rest lines (their labels are drawn at the very end, on top of the trace)
     ctx.setLineDash([6, 5])
     ctx.strokeStyle = 'rgba(255,120,120,0.65)'
     ctx.beginPath(); ctx.moveTo(L, vy(THR)); ctx.lineTo(xr, vy(THR)); ctx.stroke()
     ctx.strokeStyle = 'rgba(255,255,255,0.3)'
     ctx.beginPath(); ctx.moveTo(L, vy(REST)); ctx.lineTo(xr, vy(REST)); ctx.stroke()
     ctx.setLineDash([])
-    ctx.font = '11px system-ui'
-    ctx.textAlign = 'right'
-    ctx.fillStyle = 'rgba(255,150,150,0.95)'
-    ctx.fillText('threshold −50 mV', xr - 6, vy(THR) - 5)
-    ctx.fillStyle = 'rgba(255,255,255,0.6)'
-    ctx.fillText('rest −65 mV', xr - 6, vy(REST) + 14)
 
     // membrane potential trace: between two spikes the voltage climbs from reset to threshold.
     // A bigger push means a faster climb and a shorter interval between spikes.
@@ -324,13 +336,15 @@ function startScope(cv, rateRef, pausedRef, cfgRef) {
 
     // captions inside the plot
     ctx.textAlign = 'left'
+    ctx.font = '11px system-ui'
     ctx.fillStyle = 'rgba(255,255,255,0.65)'
     ctx.fillText(speed === 1 ? 'real time' : `slow motion ×${speed}`, L + 8, TOP + 14)
     if (pausedRef.current) ctx.fillText('paused', L + 8, TOP + 28)
-    ctx.font = '700 14px system-ui'
-    ctx.fillStyle = '#fff'
-    ctx.textAlign = 'right'
-    ctx.fillText(`${Math.round(cur)} spikes/s`, xr - 6, TOP + 16)
+
+    // labels last, so the trace can never cover them
+    pill(ctx, 'threshold −50 mV', xr - 6, vy(THR) - 8, 'rgba(255,150,150,1)')
+    pill(ctx, 'rest −65 mV', xr - 6, vy(REST) + 20, 'rgba(200,210,240,1)')
+    pill(ctx, `${Math.round(cur)} spikes/s`, xr - 6, TOP + 22, '#ffffff', 14, 800)
     ctx.textAlign = 'start'
   }
   loop()
